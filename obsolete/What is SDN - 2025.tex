@@ -1,0 +1,131 @@
+\section{What is SDN - 2025}
+
+\subsection{What is SDN - 2025}
+
+The canonical classical network architecture is exemplified by the two classes of classical forwarding devices for  L2 and L3 - switches and routers - where an L2 'switch' performs the conventional and conventionally 'inefficient' and 'unscalable' learning switch function, extended for multi-switch applications by the equally unsatisfactory spanning-tree protocol; meanwhile, the router runs some 'superior' protocol such as OSPF, or in the simplest, single device, mode replicates the single L2 switch role by simply using inferred static routes.
+
+The commonly accepted disadvantage of the routed system being the additional configuration overhead - i.e., static assignment of network unique subnets, with the client configuration hopefully made zero-touch in most cases through use of DHCP.
+In exchange for the configuration overhead, the L3 solution enables better scaling, for example solving the problem ARP traffic and susceptibility to broadcast storms, and, ultimately, enabling networks as large as the Internet, albeit with more complexity at routing level than the simple OSPF case.
+
+What does SDN have to say to this?
+
+One answer has been to simply replicate the existing device functions, using OpenFlow, and diverting the relevant control-plane traffic ('unknown address frames', or routing protocol PDUs) via 'packet in / packet out' mechanisms.  It should be obvious - but it's not clear from SDN literature that it is obvious to all - that simply mimicking classical behaviour through a remote control plane (IP/UDP based!) is clearly an entirely unprofitable exercise - it can never better the existing architecture in any way, and does nothing to solve the problems of e.g. limited lookup table size in a learning switch, or reducing the burden of broadcasting unknown frames, or better using the redundant links which spanning tree blocks, or improving the recovery time in L2  networks when topology changes.
+
+Now it should also be uncontroversial that SDN could make L2 learning networks better - for example, a centralised store for all learned MAC addresses.  But, to do very much to improve on classical L2 behaviour more is needed than just accelerated installation of learned MAC addresses in the 'correct' nexthop of an L2 switch - for example, perhaps, allowing forwarding over STP blocked links, based on selective forwarding operating on the MAC address.
+
+But, such innovation paths have already been followed, with, for example TRILL, or even, BGP EVPN.  Although, given the ubiquity of L3 as a fully capable solution to solve all of L2's limitations as a a network protocol, its not surprising that such approaches are not widely adopted as a simple alternative to an L3 network.
+
+And, even if we did pursue highly optimised L2, it need not be done in an SDN style, where SD style equates to controller+OpenFlow - rather, the option of making classical devices better in a classical way, would be a reasonable option.  The pressing reason to go to a controller solution would rather be that because the classical solution happen also to be closed and proprietary, then controller+OpenFlow is chosen not for architectural reasons but rather for pragmatic ones, which would be entirely addressed simply by open-sourcing the software in the switch or router.
+
+In this case, where the 'classical' device has been opened up for customisation, where then does it leave the contribution from SDN, compared with an equivalent built embedded in the 'forwarding agent'?  If the two implementations are identical, then we can argue that the real contribution is not delivered by 'SDN', but simply by innovation in network protocols.
+
+The SDN advocate might object that OpenFlow+SDN allows a central global view to be applied - in other words, the open-sourced equivalent cannot be realised, because it remains bound to the forwarding agent, and has only local state knowledge, and cannot coordinate flow states over multiple devices.  But there is plenty of prior art from the classical side of the house that contradicts this, for example MPLS networks that apply resource reservation, or PCE/PCEP.  And even OSPF provides for dissemination of network state, so that forwarding decisions are based on a global state view.
+
+The category distinction, if there is one, between an open-sourced classical router, and an SDN approach, can only be maintained in cases where SDN is not used not to emulate a novel but classical device, but rather to insist on a design in which intelligence is definitively moved out of the local device and into a 'logically centralised' system.
+
+
+\subsection{Overheads and trade-offs}
+
+Classical L2 and L3 networks exemplify some trade-offs: a multi-site or multi-segment L2 network can be zero-touch / 'plug-n-play', while equivalent function networks designed using L3 principles have low, but not zero, configuration overhead - here, the trade-off is between ease-of-use / cost-of-ownership on one hand,  and value, on the other -  in this simple case, the added value of L3 is scalability.
+
+But, once some additional functionality is required, e.g. access controls, secured internet or external access, etc., then the burden of configuration between L2 and L3 becomes less significant, or even reverses the relative level of management burden.
+
+\subsubsection{Overheads and trade-offs, SDN and classical}
+
+Compared to either classical L2 or L3 networks, for the cases imagined above, classical SDN is less attractive:
+\begin{enumerate}
+    \item in order to compete with L2 it must be zero-touch, and as such simply an L2 learning switch.  It can at best be 'as-good-as' L2, but no better.
+    \item in pure classical SDN, the multi-site cases require additional physical links to support control-plane.  This is at best a significant additional cost and complexity; in reality an unjustifiable extra burden without some compensating additional value.
+    \item since classical SDN requires an external controller, it \textit{cannot} be as simple as either the L2 or L3 cases, because the control-plane requires an L2 or L3 network itself.
+    \item the SDN approach is less resilient, because of the failure risk attached to the additional elements required for the control plane  - and, unless carefully designed, it is very much less resilient
+    \item the SDN approach is vulnerable to performance issues, especially latency in connectivity establishment.
+\end{enumerate}
+
+As extra service requirements are introduced, e.g. access controls, secured internet or external access, the SDN solution has to assure pre-existing, available, equivalent, high-quality and high-function \textit{built-in}, to match the classical specialised standalone products which perform these roles, e.g. firewalls, VPN gateways, etc., \textit{because SDN hides or removes} the locations and interfaces at which classical devices can be installed.
+
+Ironically, although SDN has been promoted as a way to avoid vendor lock-in, by creating a monolithic, centralised system, it runs the risk of the exact opposite.
+For example - in the classical SDN case, if the chosen device or vendor for forwarding plane devices falls from favour for whatever reason, technical or commercial, then the customer network operator needs to be confident that alternate suppliers can supply devices which exactly match the capability and operational profile of the incumbent vendor, all working with the same controller (and SDN applications!) - it's not sufficient that another vendor can achieve the same function, it must be the same function achieved with exactly the same control plane interactions, otherwise the network will cease to function with new devices.
+
+And the more value added network services are added, the greater the risk that different OpenFlow implementations will expose different profiles.  To avoid the risk, the potential SDN user would surely be careful to avoid deploying controllers and SDN applications from the same vendor as the forwarding agent, or, at least, adopt a dual vendor strategy for the forwarding system in order to safeguard against inadvertent lock-in.
+
+Operations and Management (OAM) is another challenge for SDN based networks - network operators are used to having tools such as traceroute and ping, and the capability to inspect device local configuration and operational state.  In an SDN environment traceroute and ping are generally unavailable, and even if 'implemented', no longer have the same semantics, since if the packets have to be forwarded to a central controller, the 'response' may be lost even though the actual link is available, or returned as false positive, because the controller is 'trying to do the right thing', when actually there is a network break.
+
+
+\subsubsection{Overheads and trade-offs - summary}
+
+Classical SDN is not a good fit for re-engineering simple networks with existing service definitions.
+In particular, having to operate as if it were a classical network makes it hard ever to be more than second best.
+
+The value proposition for SDN most likely requires that an existing architecture cannot provide the service - the difficulty for SDN is that as long as the forwarding plane agents are repurposed classical devices, there are few 'useful' forwarding behaviours that cannot be implemented using classical network paradigms.  The typical SDN unique proposition is more granular treatments - i.e., distinguishing packets based on other headers.  However, even these behaviours can generally be implemented in classical devices - the advantage, if any, of SDN is  perhaps then that it provides a mechanism for installing flows dynamically; but, classical solutions such as automated configuration via netconf, or BGP FLOWSPEC, are equally capable, if not more so, than OpenFlow.  Arguably, netconf or BGP FLOWSPEC may be better than e.g. OpenFlow, because they provide higher level semantics, which allow, for example rerouting under topology change without having to reissue flow specifications for every redirected flow.
+
+\subsection{Towards a new 'SDN'}
+
+\subsubsection{SDNs Four Pillars}
+
+(1)
+
+“The control and data planes are decoupled. Control functionality is removed from
+network devices that will become simple (packet) forwarding elements.”
+
+(2)
+
+“Forwarding decisions are flow based, instead of destination based. A flow is broadly
+defined by a set of packet field values acting as a match (filter) criterion and a set of
+actions (instructions). In the SDN/OpenFlow context, a flow is a sequence of packets
+between a source and a destination. All packets of a flow receive identical service
+policies at the forwarding devices. The flow abstraction allows unifying the behaviour of different types of network devices, including routers, switches, firewalls, and middleboxes.
+Flow programming enables unprecedented flexibility, limited only to the capabilities of
+the implemented flow tables.”
+
+(3)
+
+“Control logic is moved to an external entity, the so-called SDN controller or NOS. The
+NOS is a software platform that runs on commodity server technology and provides the
+essential resources and abstractions to facilitate the programming of forwarding devices
+based on a logically centralized, abstract network view. Its purpose is therefore similar
+to that of a traditional operating system.”
+
+(4)
+
+“The network is programmable through software applications running on top of the
+NOS that interacts with the underlying data plane devices. This is a fundamental
+characteristic of SDN, considered as its main value proposition.”
+
+\subsubsection{The fifth pillar}
+
+In the section 'Trade Offs' the problems with this 'classical' SDN concept have been outlined.
+
+Here we discuss the evolution of SDN from its founding principles.
+
+An unmentioned 'pillar' of SDN is disaggregation.  The 2014 paper does not use the word, one of the earliest mentions is in the ONF CORD project starting in 2015.
+
+The term Disaggregation is often partnered with concepts such as  merchant silicon, and open NOS + white box, for example from pica and cumulus.  The objective in this context is quite simple: attacking vendor lock-in.  When leading vendors (Cisco, Juniper) deliver products using the same (Broad com) chipsets as the white-boxes, then the nature of the question becomes clear - disaggregation has the function of reducing vendor lock-in, thereby driving down prices and potentially improving diversity and time-to-market for novel network functions.
+
+Of the original 'four pillars' of SDN, two are dropped entirely (1,2) and the remainder if not dropped, exposed as simply a formalisation ad repackaging of the software stack that always existed even in proprietary devices, consisting of various 'protocol daemons', unified by a common management bus and a common Forwarding Plane Manager (FPM).
+
+The blush-saver for SDN, if it seeks to retain relevance by claiming disaggregated white-box switching as it natural evolution, is that the logical separation is now between hardware and \textit{software}, with the implicit recognition that it is principally software that distinguishes network devices, rather than the hardware it runs on.  This is an entirely reasonable argument, but hardly the argument which sustained the original four-pillars philosophy.  The King is dead; long-live the King.
+
+Meanwhile, two other developments in the field of network have risen to prominence since the original four-pillar manifesto was published:
+
+\begin{enumerate}
+    \item cloud networking and virtualised or containerised computing
+    \item mobile networks
+\end{enumerate}
+
+Both fields are indisputably in some sense 'SDN' - the cloud context because both user plane and control plane are not only independent of hardware, but also entirely software based; the mobile network because its highly granular processing of user traffic is orchestrated entirely by centralised controllers, and implemented most often in pure software (x86) servers, and utilises 'OpenFlow-like' protocols, e.g. PFCP, calling out explicitly architectural concepts such as CUPS (Control and User Plane Separation.)  The core 3gpp specification for PFCP even explicitly states its similarity to OpenFlow. Both cloud and mobile applications follow a 'separated controller' architecture.  However, since the core of PFCP originated in GTP as part of UMTS starting in 2005, and was already then a 'controller' based architecture, it cannot be argued that the mobile architecture followed SDN, although the reverse might be true.
+
+What message might this carry for SDN, especially for SDN research?
+
+Sadly little, it would seem.  The world saw numerous implementations of 'industrial strength'  SDN controllers (e.g., ONOS, OpenDaylight), but never a mature application ecosystem which allowed novel 'applications' to be written in a portable manner.
+
+While OpenFlow still finds some use in niche applications (possibly still in Google and Facebook/Meta edge infrastructure), significant portable/interoperable use of OpenFlow in a physically separated architecture never became a reality, much as the OpenFlow follow-on P4 failed to gain market recognition (Intel finally declared end-of-life for its Tofino P4 switch silicon in 2024 - no other vendor ever produced a 'native' P4 switch).
+
+But what classical (four-pillar) SDN, disaggregated white box SDN, and P4 perhaps did do, and what cloud networks and mobile networks continue to do, is to foster the concept that a user programmable network function as a whole can bring change to the industry - just as PCs and open operating systems, which can be seen as 'disaggregated' 'computer systems' Intel + ( Microsoft | Linux), replacing IBM, Digital, etc.
+
+In the field of mobile and cloud, it is clear that the formerly ubiquitous industry incumbents, Cisco et al, have been toppled, while even in the fixed line network core their dominance is under threat.
+
+The challenge perhaps to further disaggregation in the core network field is that there is no clear mature equivalent to Linux, and arguably the necessary precondition for that is the absence of well defined and open hardware drivers, or even a clear picture of where the functional split should be between the 'driver', 'operating system', and 'application'.
+
+So perhaps there is still room for SDN in a research context, even if not SDN.  Writing new protocols, or improving existing implementations, or finding novel ways to apply existing hardware or software components will always be worthwhile fields.
+
+And finally, of course, perhaps the Death Of SDN is really a reflection of the Death of Future Internet, for which of course SDN could have been the concrete realisation of the vision.

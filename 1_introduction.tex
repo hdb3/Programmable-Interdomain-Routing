@@ -1,0 +1,401 @@
+\chapter{Introduction}
+\thispagestyle{empty} %not enumerate the first page
+% \textcolor{red}{DH: some changes have been made from here, but are not marked in red.}
+
+Modern life depends on the public Internet in myriad ways, seen and unseen.
+The Internet is as important to modern life as other utilities such as power, water or transport, but it is more complex, diverse, pervasive and globally interconnected than any other utility, and arguably more vulnerable to unintentional or malicious disruption.
+Whilst conventional utilities such as power, water, etc. are often provided by \emph{interconnected} large and complex organisations and systems, they can, and sometimes do, operate well enough when higher level interconnections fail, and isolated partitions are formed.
+The Internet is very different - its \emph{essence} is in its complete interconnection, at national, continental or global scope.
+Without constant and reliable interconnection between all component networks, much, and ultimately all, value is lost.
+This sets it apart from most other utilities.
+\medskip
+
+Whilst the links that interconnect the networks forming the Internet are massive in terms of bandwidth - 100s of Gbps, growing towards Tbps - they would remain empty without \emph{inter-network control traffic}.
+The direction and control of these massive network traffic flows between the networks, which collectively comprise the Internet, is called \emph{Inter Domain Routing} (IDR), and the specific mechanisms that direct end-user network traffic over viable end-to-end paths are called \emph{exterior gateway protocols} (EGPs).
+In the Internet there is in fact only one EGP protocol: that protocol is the Border Gateway Protocol, or simply ‘BGP’, and it has remained largely unchanged since it was first deployed nearly a quarter of a century ago.
+\medskip
+
+The topic of this thesis is the quest to maintain and improve the performance and reliability of Internet Inter Domain Routing, and thereby also the quality of the services that rely on the Internet, through the application of ‘programmability’ to the operation of Inter Domain Routing.
+\medskip
+
+\textbf{Motivation - 1}
+Organisations and individuals across the globe rely on the Internet for an ever increasing range of services, and it is increasingly the case that the dependence is total - in many cases, Internet service failure can completely disrupt the operation or delivery of an entire range of services or products, with no practical fall back.
+In the earlier stages of Internet adoption it was largely commercial concerns that adopted Internet processes, which still left open alternate `legacy' channels for customers unable or unwilling to use the Internet, albeit with possibly less choice and on less favourable terms, but in more recent times the Internet has become essential for many non-commercial aspects of everyday life, including socialising and use of public services.
+For most of the history of Internet evolution, large volumes of interaction remained channelled though non-Internet channels; so the dependencies were contained, because alternate servicing channels remained in use, with sufficient capacity to support at least a basic level of service.
+However, the shift to Internet as a default channel for so many aspects of commerce and service access has now reached the stage at which society cannot function unaffected for long without the Internet - and were it to be permanently disabled, many organisations would surely go out of business, whilst many more would need to recruit additional staff, and (re-)open sites for providing service directly, or by telephone or postal services - with obvious ultimate impact on consumers.
+One of the most obvious, devastating and immediate impacts would be to commerce and payments - there might simply be insufficient `real' money to support even offline commerce.
+%\medskip
+So, the potential economic and social impact from Internet failures is thus far higher than it was at the time that the structure and technology of the current Internet emerged.
+Yet the security design and vulnerabilities of the global Internet interconnection system are unchanged since its inception 25 years ago.
+\footnote{https://blog.apnic.net/2019/09/19/why-is-securing-bgp-just-so-damn-hard}
+\medskip
+
+\textbf{Historical Context}
+
+It would be wrong to suggest that there has been \emph{no} positive movement towards a more reliable internet in that time, but the changes that have been made are small and incremental, and many of the fundamental vulnerabilities that existed 20 years ago are still present today, whilst the maliciously motivated challenges have certainly increased.
+In consequence, Internet services are not substantially more secure or reliable than they were so long ago.
+It is at least plausible to suggest that the reason for this inertia, lies, perversely, in the strength of the original architecture: in contrast, video distribution technology has seen many changes, from the VHS vs. BetaMAX tape format wars of the late 1970s, through DVD and Blu-Ray to Netflix, and at every stage the entire previous ecosystem - hardware, software, etc - was replaced from scratch; the incompatibility between generations was total.
+A similar narrative applies to mobile telephony: since analogue phone service were introduced around 1983, consumers and service providers have gone through at least 5 complete upgrade cycles.
+In contrast, end-user equipment compatibility on the Internet is effectively total across time as well as space - not only can any Internet endpoint of today contact any other, across the entire globe, the same holds true across all time, ever since TCP and IP were defined in 1981.
+Even the service providers' network-to-network compatibility has changed once, in a backwards compatible way, since the first EGP (called `EGP'), was defined in 1982.
+Furthermore, there is no serious current proposal to replace TCP/IP with something `better', and TCP/IP is as prevalent in private networks as it is in public ones.\footnote{QUIC emerged during the writing of this thesis \ldots}
+Only Ethernet has as long and pervasive a history of dominance - the case might even be made that the architecture should actually be named TCP/IP/Ethernet, given how closely they are integrated and how complementary their roles.
+Certainly, the architectural principle which distinguishes yet unites TCP/IP and Ethernet is an essential element of the overall `TCP/IP architecture'.
+\medskip
+
+\textbf{Motivation - 2}
+The foregoing discussion of the vulnerability of society and the global economy to Internet failures is motivation enough for academic work in myriad areas of research, of which communications and networking is but one, and within just the field of network research there can be many angles of approach to this important topic, with varying degrees of immediate applicability.
+But what is surely evident when simultaneously considering both this high level of vulnerability and risk, and the historical and commercial context just outlined, is a pressing need for \emph{incremental}, and thus \emph{deployable}, approaches to improving Internet resilience.
+The later related work survey is remarkable in that it finds no recent prior work that directly approaches this issue in these terms - there are many contributions in the wider literature on more secure future architectures, on analyses of vulnerabilities and attacks, and on schemes for rapid and accurate detection of routing failures; and there is also applied/practical work on other, non-Internet transit, network resilience and routing enhancement (e.g. for data-centre, IXP and Internet edge), but nothing which is both practical and directly relevant.
+Is this problem intractable, or just uninteresting? Or is it perhaps the case that the topic has been categorised as `engineering' rather than `research'.
+(This dichotomy is discussed in more depth in a later chapter.)
+\medskip
+
+The related work may be summarised thus: in 2006 Karlin, Forrest \& Rexford published ``Pretty good BGP: Improving BGP by cautiously adopting routes" \cite{Karlin2006} - 12 years later, in 2018, Sermpezis, Kotronis, Gigis et al. published ``ARTEMIS: Neutralising BGP hijacking within a minute" \cite{Sermpezis2018}.
+Both research groups followed similar paths, to arrive at the same, perhaps unsurprising, conclusion that there exist simple and effective techniques that use readily accessible data to yield quantitatively better BGP routing outcomes than can be achieved by any unaugmented network of legacy BGP routers. A literature search reveals many more papers published between these two, which converge towards the same consistent conclusion.
+Collectively, they represent a rich and diverse set of strategies for improving internet routing. What is striking, however, is that even more than a decade after the first paper was published there has been no material progress towards applying these insights in the real world; nor even, it would seem, has there been any curiosity about how that might be achieved.
+Indeed, the 2006 paper has a more concrete and detailed approach to the subject than almost any paper published since.
+(See the related work chapter for more on this topic).
+The last point to be drawn here is this compelling insight from Karlin, Forrest \& Rexford (2006) - in their words, `(the) Importance of a Collective Response':
+\emph{"PGBGP can protect 97\% of ASs from malicious prefix routes and 85\% from bogus sub-prefix routes when deployed only on the 62 core ASs in our study network. If PGBGP were deployed on all ASs, both numbers would exceed 99\%"}.
+This paper clearly explains why there is so little merit in optimising just a subset of transit networks - because unless the response is \emph{collective} there can be no effective response - hence the \emph{only} useful strategy is one which can be adopted by all transit service providers, not just a few.
+\medskip
+This is the central challenge for this thesis: to discover, if possible, a strategy which might realistically be adopted by all transit networks.
+\footnote {ROA/RPKI was defined in 2012 - whilst it is in moderate use to day (see \url{https://rpki-monitor.antd.nist.gov/}) - less than 20\% of the Internet address space is even registered for protection, whilst the actual level use by network operators of the registry is harder to measure but seems unlikely to be much higher if at all than the level of use by address space owners.
+	ROA has the strong advantage that it can be deployed without disruption and incrementally, and does not directly affect BGP operation in any way.
+	Secure-BGP is more recent (RFC8205 in 2017, under active investigation since 2000, IETF SIDR WG since 2006), and much more intrusive.
+	There are no reports that BGPsec is deployed anywhere in the Internet today, which is not surprising since no commercial router vendor supports the protocol. (see \url{https://pc.nanog.org/static/published/meetings/NANOG2019/1840/20180921\_Kosters\_Security\_Q\_A\_And\_v1.pdf})  \url{https://blog.apnic.net/2019/09/19/why-is-securing-bgp-just-so-damn-hard/ is also authoritative and relevant}}
+\medskip
+
+%\textcolor{red}{DH: edited up to here now ...}
+
+\textbf{Programmability} The term ‘programmability’ requires clarification and justification in order to differentiate ‘Programmable Internet Routing’ (PIR) from the prevalent routing control model referred to here as ‘Static Internet Routing’.
+Another important question is motivation: why is Programmable IDR 
+%%% \textcolor{red}{[expand / explain (again) IDR]}
+needed.
+This is a broader topic and more familiar - briefly, security, reliability and Quality of Service are explicit target attributes, although arguably the objective parameter is cost of delivery, and the others are constraints, which need to be met rather than maximised.
+\medskip
+
+\textbf{Scope} In this thesis there is a strong need for definition and scope of both the problem space and solution space: the Internet is not the only network, nor even the only globally connected network, and there are arguments in support of the proposition that the current Internet cannot meet the future demands, or even all the current demands, for ‘Internet like’ services - perhaps necessitating development and deployment of an entirely new, ‘clean slate’, ‘Future Internet architecture’.
+It is not the intent here (yet!) to take sides in that debate; nonetheless an important contribution to that debate is the establishment of the limits inherent in the existing technology, and such a contribution may even help shape the direction of Future Internet work.
+
+In fact, this thesis makes the argument that the problem space (or solution space) definition question is a central issue in making sense of the complex and sometimes confusing topic of Future Internet (or \emph{new network}) evolution: but, perhaps unfortunately (at least for academics and engineers), it is economic, social and political considerations that will dictate in the broadest sense what network services will be deployed as Internet services, and how precisely they are delivered.
+\medskip
+
+\textbf{The prospectus}
+The thesis makes the argument that a new \emph{evolved} architecture is possible and beneficial - an architecture which is an \emph{incremental} evolution of existing transit and ISP designs,
+which need not impact on the stability and performance of existing designs, yet can improve resilience to routing failures and attacks, and also represents an intermediate step to a full ‘SDN’ network architecture.
+\medskip
+
+\textbf{The architecture}
+The scope of the new architecture is the individual transit ISP.
+The architecture has two aspects - monitoring and control.
+Monitoring is conceptually simple - every ASBR has a monitoring link to a control point, and that monitoring link uses one of two standardised protocols - BMP or BGP/ADD-PATH.
+Control links simply follow the reverse paths to the monitoring links - the control links are technically even simpler than monitoring links, using only standard BGP.
+However, the detailed specification of how BGP control sessions can effect the required results, reliably, consistently and without undesirable adverse impact is more complex.
+The proposed architecture is \emph{delocalised} rather than centralized.
+This means that it can scale and implement resilience, while implementing a \emph{logically centralized} control model.
+\medskip
+
+\textbf{The research programme} The research addresses - \emph{Scoping, design, implementation, observation, experimentation and evaluation}
+
+The work reported in this thesis covers:
+\begin{itemize}[noitemsep,nolistsep]
+	\item{analysis of internet routing traffic (‘routeviews’ MRT data)
+	      }\item{MRT analysis tools, which use shared libraries from other parts of the project
+	      }\item{an implementation of a full BGP speaker which implements Programmable Internet Routing - PIR: this BGP speaker is written entirely in the functional language Haskell
+	      }\item{an experimental infrastructure which allows arbitrary topologies to be assembled with BGP speakers including both PIR and also widely used ‘production quality’ BGP speakers (bird, frr, openBGPd, and virtualised instances of Cisco and Juniper core routers)
+	      }\item{a BGP performance and scale test system
+	      }\item{a reference minimal BGP speaker which is used as a baseline system to validate the performance test tool
+	      }\item{an evaluation of the performance of the PIR system alongside the other BGP speakers
+	      }\item{an evaluation of the performance requirements and limits of BGP speakers in real world contexts e.g. IXP and core transit networks
+	      }\item{proposal, analysis and evaluation of the architectures and performance constraints of hyperscale BGP speakers
+	      }\item{an evaluation of the operation and performance of the PIR architecture proposed and implemented in this thesis}
+
+\end{itemize}
+
+\textbf{Motivation}
+The motivation is to investigate and, for the first time, to build and demonstrate an evolved architecture, and an assessment framework that checks the `real-worldliness' of the technical system that has been developed. The work covers: requirements, design and implementation of a PIR architecture;
+QoS - Internet application QoS requirements - implications for BGP interconnection;
+implementation and Optimisation of BGP speakers - analysis informed by Internet measurement studies and real world code implementations of performance bottlenecks in functional and procedural implementations, including an overview of advantages and disadvantages of a FP Haskell implementation.
+
+% \textcolor{red}{DH: I have added text to the paragraph above -- please check whether you like what I've done here (or not ...).}
+% \NH{yes, thanks...}
+
+\section{Background}
+\textbf{SDN and Future Internet}
+Both SDN and Future Internet (FI) represent complementary strands of research that are intended as pathfinders for the direction of network evolution - SDN is arguably a ‘bottom-up' approach, and FI a ‘top down’ approach.
+(both, and their relation to this work, are examined in more detail later). Meanwhile, this thesis addresses the same issues as in FI and much of SDN, and proposes an architecture that is both a form of SDN, but also enables an evolution from conventional ‘legacy’ networks to a more conventionally conceived ‘SDN’ network.
+The relevance to FI is perhaps philosophical (as is FI research in some instances) - FI aims to articulate and then address current limitations of the Internet, and future requirements, with an implied assumption that resolution of these issues requires ‘architectural’ change.
+The prospectus in this thesis is at odds with FI - it aims to make the existing architecture as good as it can be, and argues that ‘Future Network’ and ‘Future Internet’ are not synonymous, but can coexist.
+In doing so it may effectively undermine much FI work from an existential perspective.
+However, both SDN and FI are important influences on this work - the intention is to deliver on the promise of SDN and to resolve the challenges of FI by distinguishing more clearly the services and capabilities which are (and are not) ‘Internet’ in nature, and to show the natural limitations that define the boundary between them.
+\medskip
+
+%\textcolor{red}{DH: edited up to here now ...}
+
+\textbf{Commercial aspects}
+Even once the Internet achieved ubiquitous global reach, it continued to evolve by expanding the services it could support, gradually and unevenly across the Internet, displacing other networks as it became fast enough, cheap enough and reliable enough to support the new services.
+An essential aspect of this evolution has been the development of economic models and network designs that enable both network providers and service providers to remain profitable without relying on end-user charging other than essentially flat rate tariffs.
+An orthogonal operational and commercial premise is the charging model for traffic between networks - the charging system referred to as 95th percentile billing - which assigns charging based on peak flows, reflecting the fact that network capacity has to be provided based on expected peaks rather than averaged flow rates.
+The result of the 95th percentile transit charging model, and its combination with un-metered end-user service, is a very different model than one which would assign charges based on resource reservation. This represents a very high hurdle to acceptance for any future network architecture; it would dictate resource reservation as a means towards improved QoS for specific services.
+This ‘flat-rate’ charging model fits the ‘best-effort’ service proposition - and it is hard to foresee a change from ‘best-effort’ without a corresponding change in charging and cost allocation principles.
+\medskip
+
+\textbf{Organisational Inertia}
+Resistance to change - the basic principles of network operation have changed very little in decades.
+The reasons for this inertia are complex and include:
+\begin{itemize}[noitemsep,nolistsep]
+	\item{long experience and large investment in existing technologies and architectures}
+	\item{incumbent equipment vendors reluctance to facilitate or endorse technical developments that could threaten their commercial interests}
+	\item{low appetite for risk or innovation within the network operator community}
+	\item{an absence of commercial or even experimental alternative architectures and solutions}
+	\item{resistance to solutions which rely on centralized management systems, which are seen as inherently less resilient than existing distributed architectures}
+	\item{focus on other areas of technical development, e.g. MPLS and TE.}
+	\medskip
+\end{itemize}
+
+\textbf{A fork in the road (evolution vs. revolution)} The foregoing arguments lead one to the conclusion that programs for Internet service improvement fall into just two, quite diverse, categories. These can loosely be classified as evolution or revolution - the essential point being that the combination of technologies and supporting commercial and organisational structures that compose the current Internet are very much entangled around the existing design. Thus, a significant change that is both end-to-end backwards compatible and also revolutionary in terms of upgraded service characteristics, seems very unlikely.
+The hybrid (and in this view a more plausible) ‘Internet evolution’ road-map is arguably already in progress. This is one in which individual network service providers deliver ‘vanilla Internet’ service as an overlay service over an enhanced access network, alongside differentiated services which are more restricted in their reach - either only within the local domain, or only over interconnection with selected partners.
+Enhanced services might be presented as regular IP, addressable using public IP addresses but in reality routed and terminated differently to other Internet traffic.
+
+%\textcolor{red}{DH: edited up to here now ...}
+
+New applications, for example those that might need to signal QoS requirements, might also be delivered through the legacy IP address space without major change to host system network stacks, while yet other services might follow the route of entirely new protocols and interfaces to the end system, running in parallel to legacy Internet service delivery.
+Of course, there is nothing new in this hybrid service proposition: early consumer ADSL services did exactly this, reserving a high speed channel for delivery of locally hosted services such as VoD and telephony, and today's content providers, such as Netflix, also adopt this model, under the publicly addressed/locally terminated architecture, embedded in access network providers' infrastructure.
+This may be bad news for the Future Internet architecture proponents, because it undermines their argument for re-engineering the Internet from scratch - but it also offers the possibility that parallel globally connected Internets could come into existence - some perhaps offering intrinsic security, or built-in edge computing, or limited but still multi-domain low-latency services - each with different business models than the current, default, `best-effort' and `all-you-can-eat' approach.
+The common theme in all of these ideas is the continued usage wherever possible of public Internet address space, and TCP/IP as a service API.
+This makes explicit a dichotomy between IP as an API and IP as an end-to-end architecture.
+The end user may consume multiple ‘internet’ services, unaware of the diversity, as long as the service interface remains the same and the charging models are distinct but compatible with the commercial relationships between consumer, access provider, and end service provider.
+\medskip
+
+\textbf{Defining the problem space} Transit networks exist out of necessity: there are too many end-system networks ($\sim$ 50,000) to permit 1:1 peer links between them all.
+A ‘radical’ counter proposal would be to allow every end AS to build (virtual) L2 links to every other such network - but if there were competing transit L2 providers (think: IXP!) then the problem of choosing which L2 provider reduces to exactly the BGP transit architecture with a maximal AS path length of 2.
+But of course that would require ubiquitous L2 providers with complete global connectivity to all end ASes - which is infeasible - not least because small ASes do not want or need to have the commercial complexity of connecting to every ‘tier 0’ transit. Thus a hierarchy is inevitable, which leads to the problem of interconnecting the hierarchy, which eventually leads back to the BGP transit hierarchy that we sought to eliminate.
+A challenge to this could be constructed from an analysis of end-ASes by classifying as ‘eyeball (access)’ and service/content provider - this reduces the scale of the interconnection matrix (from (n+i)2) to n x m, at least for the bulk of traffic - but the reduction is still not great enough to make a full mesh remotely practicable, even if this simplistic partition were valid.
+But more problematic than the technical and operational complexity would be the commercial complexity - who pays who, how much? - and, finally, consider the additional signalling traffic required to manage all of these connections - which would far outweigh actual user traffic for over 99\% of all connections.
+\medskip
+
+\textbf{‘The death of transit’} It is certainly true that the relative \emph{volume} of indirect Internet traffic is reducing, driven by the rise of IXPs and CDNs, the concentration of consumer Internet activity into small number of very large content and service providers, and the increasing use of cloud based systems to host content on behalf of smaller organisations.
+%%% \textcolor{red}{[Have you been consistent with the use of the `z' form?]}
+%%% \NH{yes, it is fixed throughout now}
+
+So it is wise to ask whether this means that the aggregate impact of the vulnerability to internet failures described above is actually lower than it would appear, and that perhaps the most important or widely used services are already increasingly less susceptible to the impact of interruptions rooted in the IDR system.
+The answer is obvious from a qualitative perspective: embedded content and direct or IXP inter-mediated peering is already responsible for a high volume of both traffic and transactions - and possibly an important recent trend is the growth in the membership of IXPs from larger companies. Thus it is undoubtedly the case that for many consumers and businesses, under `normal' circumstances, much Internet traffic already bypasses transit networks entirely. 
+
+%%% \textcolor{red}{[Do you think most readers will understand `transit'?]}
+%%% \NH{Updated, please review...}
+The question is only how long (and tall) is the fat tail of traffic which still must transit transit.
+The subject of exactly which services, and for whom, will remain indefinitely vulnerable to transit traffic issues is a worthy subject for further study - as evidenced by the fact that it was hard to find a good answer to this question here.
+The data from a 2019 presentation at NANOG from Nokia is perhaps a good authority as any: \url{https://pc.nanog.org/static/published/meetings/NANOG76/1972/20190610\_Labovitz\_Internet\_Traffic\_2009-2019\_v1.pdf} - this report shows continuing growth in transit traffic, albeit at lower rates than total end-user traffic levels.
+(Even finding authoritative data on transit traffic volumes is difficult.)
+%\medskip
+So, it may be that the \emph{‘The death of transit’} is also \emph{‘The death of Future Internet’}, as single-AS-hop or zero-AS-hop paths become the norm for all significant Internet services.
+Interestingly this is almost exactly the implied universal mitigation in the Artemis
+%%% \textcolor{red}{[Explain what this is ...]}
+%%% \NH{I made it more explict that this is a paper I review in depth...}
+paper - where, for hijacked prefix owners the preferred, and, in most cases,
+the only solution is seen to be \emph{`Outsourcing mitigation with MOAS announcements'}.  (The Artemis paper is reviewed in the later chapter `Related Work').
+In other words, the owner of specific prefixes delegates authority \emph{to another AS} to originate their prefixes, at as many locations - in practice IXPs - as the mitigation service provider can access.
+The consequence of this strategy is an even more rapid evolution towards a `two-tier' Internet, in which only the most marginally valued services are accessed via transit.
+The great enabler of this evolution is of course `public cloud' services, which enable virtually any provider of Internet based services to deploy their applications or content without the need to separately implement Internet access.
+It maybe that this trend will so reduce the scope for malicious actors to cause widespread damage or yield significant fraudulent gains that the level of routing attacks will diminish so that the techniques advocated in this thesis will prove ultimately unnecessary.
+However, current reports show no signs of such a reduction in routing attacks yet, so it still seems worthwhile to pursue the goal that is set.
+
+% \paragraph{Narrowing down the topic - and some historical context} \textcolor{red}{[I need you to make this more readable.]}
+% {\color{blue}{I understand the grammar here is odd/needs fixing, is that the point?}}
+% - i.e. academics looked at programmability several times, but always came up with solutions which are effectively big-bang - they keep BGP as a protocol and as a device level specification, but substitute the distributed routing decision system with completely centralized control.
+% It illustrates the flexibility of BGP but is not viable for existing networks, and does not solve the problem of incrementally improving the quality of routing decisions.
+
+% \subparagraph{Conclusion}
+% No one has investigated how to work synergistically with an IBGP mesh,
+% \textcolor{red}{[Again, you have to make this more readable, and explain what IBGP means ...]}
+% \NH{[Re IBGP, it's difficult to know what to do here when I devote several pages later to what IBGP is.  Should I write a brief summary of BGP here in the Introduction, so that the meaning is clear?  I worry that if the reader doesn't know already at a basic level, then the rest of the thesis would be rather hard to take in. Is it that the Introduction would be more widely understandable?]}
+% \NHx{[Regarding the substance of the paragraph, I can write more text which might be more accessible, but I hope that the form here would be understandable by a reader with the background.  I think on reflection that I should merge the text under the two headings \textbf{Narrowing down the topic - and some historical context} and \textbf{Conclusion}, but I want to clarify with you about the questions above... ]}
+% possibly because without access to external routing state there is little gain - the analysis suggests that for most problems the best possible strategy is simply promoting a second best route - but that gaining reliable access to a second best route was not possible in the context of BGP networks until at least 2016, when ADD-PATH and BMP were standardised and widely implemented.
+
+%%% \NH{original text reworded entirely, now left only in comments}
+\paragraph{Conclusion}
+
+In the past, academic researchers explored programmability as a means to enhance Internet architecture, resilience, and performance. However, the resulting proposals often necessitated "big-bang" deployments rather than incremental changes. For example, solutions like Routing Control Platforms (RCPs) \cite{Feamster2004} retained the Border Gateway Protocol (BGP) at the protocol and device level but substituted its distributed routing decision-making system with entirely centralized control. While effectively demonstrating BGP's adaptability as a protocol, this type of approach is not practical for deployment in existing networks and does not address the challenge of incrementally enhancing the quality of routing decisions.
+
+Within an Autonomous System (AS), the specific BGP variant used is Internal BGP (IBGP). Notably, there is a scarcity of reported research investigating how to work synergistically with an existing IBGP mesh, in contrast to work done for other protocols, such as Vissicchio et al.'s 'Fibbing' approach for OSPF \cite{Vissicchio2015c}. This lack of focus on IBGP may be because improving upon the standard route selection process is challenging without complete and reliable access to external routing state information, which is only \textit{consistently} available at the border routers, but not propagated unless a border router has already selected a route as optimal. Detailed analysis suggests that for many common routing problems, the most effective strategy is often to promote the second-best available route, however, reliably accessing such second-best routes within IBGP networks was not feasible until the standardisation and subsequent commercial availability of technologies like ADD-PATH, and the BGP Monitoring Protocol (BMP), starting around 2016.
+\medskip
+
+%\textcolor{red}{DH: edited up to here now ...}
+
+\section{Thesis organisation}
+\textbf{Chapter 2 - Background}
+Chapter 2 describes the context of the thesis and expands on some topics already mention elsewhere in the Introduction.
+This includes multiple themes, as follows:
+\begin{itemize}[noitemsep,nolistsep]
+	\item{structure and organisation of the current Internet;
+	      }\item{brief historical summary focusing on how the evolution of the Internet and its underlying technologies have been shaped by changing requirements.
+	            This includes a mention of ‘flattening’ and the ‘death of transit’ perspective;
+	      }\item{discussion of BGP - its role, and how protocol specification influences and is influenced by the application (IDR);
+	      }\item{a short description of how IDR and BGP are used - what issues arise, and how BGP and the policies it enables address issues (‘how does BGP enable ‘policy’?’);
+	      }\item{description of the key challenges in IDR today (QoS / security / availability / resilience / economic viability / surveillance, control, governance and ownership);
+	            What are the service goals for the Internet?  Does this question even make sense?  How is the delivery of those goals enabled, or not, by the current architecture?
+	      }\item{a short introduction to SDN - what is it and why is it relevant to this thesis?
+	      }\item{IETF - a review of the role of the IETF and the current and historical contributions to the topic form the IETF.}
+
+	%(the NIST document gives some good pointers!) <Note this could be considered ‘related work’.>
+	\medskip
+\end{itemize}
+
+\textbf{Chapter 3 - Related work}
+Some themes from chapter 2 re-emerge here - but the leading question is what problems are the earlier researchers intending to address, and what role if any does SDN play?
+
+%%% \textcolor{red}{[This surely needs to be expanded somewhat ...]}
+%%% \NH{[How many words?  Worried about duplication, worried about obscuring the point which is about organisation...]}
+\medskip
+
+\textbf{Chapter 4 - Research Context}
+The academic backdrop to this thesis lies in the research fields of `SDN' and `Future Internet', which represent respectively a `bottom-up' and `top-down' prospectus for network evolution.
+This chapter explores some contrasting perspectives on the fundamental issues in evolving networks and network technology for supporting the changing ways in which society uses digital technology. It also addresses the `virtuous circle' whereby technology change drives the creation of `new services' and new ways of interacting, while the changing social exploitation of the technology drives yet further technological development. An important question is ``how well does the academic prospectus align with the realities of social and technological change?".
+This leads naturally to the practical themes of the thesis: what problems are presented by current technology, specifically in the field of Internet service delivery; how can these challenges be addressed by the application of pragmatic technological innovation, crafted to address the organisational and economic constraints that so challenge other academic proposals?
+%- perhaps fatally, if the arguments presented in this chapter and in the preceding chapter on related work.
+
+\textbf{Chapter 5 - On BGP}
+There exist many books and publications on BGP, with a variety of aims and focus:
+\begin{myitemize}
+	\item BGP as a protocol - stability, performance, and simply `how it works';
+	\item BGP applications - core Internet routing (IDR), data-centre applications, customer (MPLS-/L3)VPN, EVPN and layer 2 VPNs and scaling;
+	\item Internet structure - peering, `flattening', security, economics, topology evolution, resilience;
+	\item implementation.
+\end{myitemize}
+
+For many purposes it is possible to treat BGP routers simply as agents that exchange abstracted route objects - objects with the well known properties of AS paths, local preference, BGP communities etc., while passing over any detailed consideration of the dynamics of coordinating simultaneous high volumes of input and output messages, with multiple peers, and the necessary rules that ensure consistent and convergent behaviour.
+
+It is also possible to study BGP systems in great depth, without understanding or considering the peculiar and different behaviour of BGP as an AS \textit{internal} protocol, its interaction with IGPs - other internal routing protocols, operating concurrently in the same AS, and the mechanisms employed within an AS to implement the essential distinctive behaviours towards `customers', `peers' and `providers'.
+Another complementary domain is the internal administration of BGP routers within an AS in order to achieve desired outcomes for traffic flows \textit{with other ASes}.
+All of these domains fall loosely into the category of what is sometime called `BGP policy' - but none of them relate to the challenges faced by an implementer of BGP.
+Fortunately, the implementer need understand nothing of these issues and problems in order to build not only a passable BGP, but actually a BGP that is as good as, or `better' than, any existing BGP.
+However, the bridge between the `eyes-down' world of the BGP implementer and the `eyes-up, looking outward' perspective of the network architect or manager is the murky `BGP policy engine' - the part of a BGP system in which every implementation differs, requiring the implementer to define some form of `programming language', or DSL. This vitally important topic is one subject of the practical work of this thesis, and is also one of just two areas that distinguish BGP implementations from each other, offering scope for innovation, differentiation and, if done wrongly, can lead to catastrophic network failures.
+
+In this thesis, the presentation of BGP is oriented primarily towards the eyes-down implementation aspects, relevant to the work presented, and secondarily as an overview of operational principle that serves as a background to the applications developed; it also outlines ways in which the conventional `policy engine' limits the scope of control and flexibility.
+
+\medskip
+
+Note: The description here of core BGP is no substitute for reading the original, succinct and lucid RFC, RFC4271 \cite{rfc4271},it rather attempts to explain some of the unstated reasoning and implications of that RFC.
+
+\medskip
+
+The last aspect presented is an exposition of the `beautiful' way in which BGP distributes decision-making over an entire AS, enabling huge scalability and resilience, but also making any proposition of creating a single, central, point of control seemingly impossible, without losing the benefits of this distributed architecture.
+
+\medskip
+
+% \textbf{Chapter 6 - Design}
+% `Design’ may not be adequate to describe the scope of this chapter.
+% The chapter starts with a restatement and elaboration of the ‘problem statement’ already defined in the Introduction
+% %%% \textcolor{red}{[Check that it is here, and also make sure you introduce IDR (again?).]}
+% , which is not just the external challenges - i.e. ‘better’ IDR - but why it is difficult to make IDR better.
+% Part of this chapter develops the argument that the internal BGP based architecture of transit networks is not just one of a large spectrum of design solutions but an inevitable fixed-point/singular outcome of some fundamental principles - for example the distributed decision process makes it hard to reason about received routes with full context.
+% The related work gives examples that underline the difficulty of changing the architecture in a non-disruptive, evolutionary, way.
+% Later parts of the design move onto the architecture of the proposed solution - the externally observable behaviour (route poisoning) - the internal implementation - what is PIR?, and what are the requirements and constraints for PIR - and what are the design choices available?
+% The proposed design and mechanism are also described - with limitations and performance constraints, and also consistency, integrity, latency, and fail-safe operation.
+% \medskip
+
+% \textbf{Chapter 6 - Implementation}
+% There are multiple implementation aspects.
+% The first is \hbgp.
+% The implementation in Haskell is motivated and described, explaining the benefits and potential pitfalls, and also the overall functional decomposition of the problem.
+% 	[An appendix describes some details of the work.]
+
+% The second aspect of implementation is the test framework.
+% This implementation starts with a discussion of the test requirements for the framework - what are the aspects of \hbgp that should be evaluated?
+% How can these metrics be observed? What are the challenges in making accurate and verifiable measurements?
+% How does the design address these requirements?
+
+% The third implementation aspect is the reference implementation.
+% The test framework allows \hbgp to be benchmarked against commercial and open source production quality BGP speakers.
+% The results are illuminating but give rise to the need to calibrate the test framework in order to gain assurance that the observed performance metrics are not artefacts of the measurement system.
+% The reference implementation developed for this purpose is a simple `C’ language BGP speaker.
+% As well as allowing the calibration and verification of the test framework, the implementation of a stripped down BGP speaker optimized for performance sheds light on the limitations of both \hbgp and the tested production BGP speakers.
+% \medskip
+
+% \textbf{Chapter 6 - Evaluation}
+% There are two themes in the category of evaluation - the first is the evaluation of \hbgp to demonstrate its capabilities to fulfil the role required for PIR.
+% This evaluation is a combination of functional and performance testing - it shows that \hbgp can be used to augment a conventional transit network to create an instance of PIR that exhibits complex and more effective routing behaviour than is possible in the conventional network alone.
+% The second aspect of the evaluation is the benchmarking of \hbgp with other production grade BGP speakers and the reference BGP speaker.
+% This evaluation shows that the goal of implementing BGP policy using high level language constructs is viable, and also sheds useful light on the fundamental limitations of single threaded BGP speakers and the potential for building higher performance BGP speakers using optimized distributed or concurrent processing techniques.
+% \medskip
+
+% \textbf{Chapter 7 - Conclusion}
+% The Internet and its uses continue to expand and evolve, whilst its technical foundations remain in many ways unchanged.
+% In the eyes of many commentators, the capacity of the Internet to accommodate change and improvement is restricted by fundamental aspects of those foundations, and BGP and its associated architecture is often seen as one of the major obstacles to evolution.
+% This thesis aims to contradict such a view and to show that BGP enabled systems are capable of evolving smoothly into a more agile and flexible ecosystem without the need for radical change in protocols, architectures or infrastructure and investment.
+% This final chapter discusses the role for SDN in a `Future Internet’ and proposes a more evolutionary than revolutionary approach, which still enables radical change to the Internet and Internet-based services.
+% In the more immediate future there is a need for improved routing policy -- and a large amount of work already exists, showing how to derive and define better policy. However, there is an absence of mechanisms in existing networks and equipment to apply these ideas.
+% %%% \textcolor{red}{[Quote Artemis, pretty good BGP and the NIST document references.]}
+% %%% \NH{Artemis is the only paper I mention elsewhere which corresponds to \textbf{showing how to derive and define better policy}.  I have others in my collection which I could quote if you think worth digging them out.  If I do I should probably also add them into the main Artemis discussion.  Is this what your question means?}
+% To address these concerns, a SDN-style approach is attractive, and for new entrants to the field a simple architecture can be proposed, based on a distributed route controller such as first proposed in RCP, in which BGP is used as a south-bound SDN API protocol. 
+% %%% \textcolor{red}{[Expand on RCP here.]}
+% %%% \NH{again happy to add text but worried about duplication....?}
+% Unfortunately, existing large networks are unlikely to adopt this clean-slate approach, and there is a clear need to develop a strategy for evolution from conventional networks towards such an architecture.
+% This thesis addresses this difficult and important gap, and in doing so provides two important contributions: the first is a mechanism to upgrade existing transit networks to enable Programmable Routing control, and thus improve the reliability of routing in the Internet today; and the second is the identification of a direct evolutionary path towards a SDN-enabled Future Internet architecture.
+
+% %\textcolor{red}{DH: edited up to here now ...}
+
+\bigskip
+
+\textbf{Chapter 6 - Research Scope}
+% `Design’ may not be adequate to describe the scope of this chapter.
+This chapter starts with a restatement and elaboration of the ‘problem statement’ already defined in the Introduction,
+
+%%% \textcolor{red}{[Check that it is here, and also make sure you introduce IDR (again?).]}
+ which is to say, not just the external challenges - i.e. build a ‘better’ IDR - but why it is so difficult to make IDR better.
+
+ Part of this chapter develops the argument that the internal BGP based architecture of transit networks is not just one of a wide spectrum of design solutions, but an inevitable fixed-point/singular outcome of some fundamental principles - for example, the distributed decision process makes it hard to reason about received routes with full context.
+
+ The earlier chapter on related work gives examples that underline the difficulty of changing the architecture in a non-disruptive, evolutionary, way.
+
+Later parts of the design move onto the architecture of the proposed solution - the externally observable behaviour (route poisoning) - the internal implementation - what is PIR?, and what are the requirements and constraints for PIR - and what are the design choices available?
+The proposed design and mechanism are also described - with limitations and performance constraints, and also consistency, integrity, latency, and fail-safe operation.
+\medskip
+
+\textbf{Chapter 7 - Implementation}
+There are multiple implementation aspects in this Thesis.
+
+The first is \hbgp.
+The implementation in Haskell is motivated and described, explaining the benefits and potential pitfalls, and also the overall functional decomposition of the problem.
+	% [An appendix describes some details of the work.]
+
+The second aspect of implementation is the test framework.
+This implementation starts with a discussion of the test requirements for the framework - what are the aspects of \hbgp that should be evaluated?
+How can these metrics be observed? What are the challenges in making accurate and verifiable measurements?
+How does the design address these requirements?
+
+The third implementation aspect is a performance benchmark reference BGP implementation.
+The performance test framework allows \hbgp to be benchmarked against commercial and open source production quality BGP speakers.
+The results are illuminating but give rise to the need to calibrate the test framework in order to gain assurance that the observed performance metrics are not artefacts of the measurement system.
+The reference implementation developed for this purpose - `kakapo' - is a simple `C’ language BGP speaker.
+As well as allowing the calibration and verification of the test framework, the implementation of a stripped down BGP speaker optimised for performance sheds light on the limitations of both \hbgp and the tested production BGP speakers.
+\medskip
+
+\textbf{Chapter 8 - Evaluation}
+There are two themes in the category of evaluation - the first is the evaluation of \hbgp to demonstrate its capabilities to fulfil the role required for PIR.
+This evaluation is a combination of functional and performance testing - it shows that \hbgp can be used to augment a conventional transit network to create an instance of PIR that exhibits complex and more effective routing behaviour than is possible in the conventional network alone.
+The second aspect of the evaluation is the benchmarking of \hbgp with other production grade BGP speakers, and with the benchmark reference BGP speaker.
+This evaluation shows that the goal of implementing BGP policy using high level language constructs is viable, and also sheds useful light on the fundamental limitations of single threaded BGP speakers and the potential for building higher performance BGP speakers using optimised distributed or concurrent processing techniques.
+\medskip
+
+\textbf{Chapter 9 - Conclusion}
+The Internet and its uses continue to expand and evolve, whilst its technical foundations remain in many ways unchanged.
+In the eyes of many commentators, the capacity of the Internet to accommodate change and improvement is restricted by fundamental aspects of those foundations, and BGP and its associated architecture is often seen as one of the major obstacles to evolution.
+This thesis aims to contradict such a view, and to show that BGP enabled systems are capable of evolving smoothly into a more agile and flexible ecosystem, without the need for radical change in protocols, architectures or infrastructure and investment.
+This final chapter discusses the role for SDN in a `Future Internet’ and proposes a more evolutionary than revolutionary approach, which still enables radical change to the Internet and Internet-based services.
+In the more immediate future there is a need for improved routing policy -- and a large amount of work already exists, showing how to derive and define better policy. However, there is an absence of mechanisms in existing networks and equipment to apply these ideas.
+%%% \textcolor{red}{[Quote Artemis, pretty good BGP and the NIST document references.]}
+%%% \NH{Artemis is the only paper I mention elsewhere which corresponds to \textbf{showing how to derive and define better policy}.  I have others in my collection which I could quote if you think worth digging them out.  If I do I should probably also add them into the main Artemis discussion.  Is this what your question means?}
+To address these concerns, a SDN-style approach is attractive, and for new entrants to the field a simple architecture can be proposed, based on a distributed route controller such as first proposed in RCP, in which BGP is used as a south-bound SDN API protocol.
+
+%%% \textcolor{red}{[Expand on RCP here.]}
+%%% \NH{again happy to add text but worried about duplication....?}
+
+Unfortunately, existing large networks are unlikely to adopt this clean-slate approach, and there is a clear need to develop a strategy for evolution from conventional networks towards such an architecture.
+
+This thesis addresses this difficult and important gap, and in doing so provides two important contributions: the first is a mechanism to upgrade existing transit networks to enable Programmable Routing control, and thus improve the reliability of routing in the Internet today; and the second is the identification of a direct evolutionary path towards a SDN-enabled Future Internet architecture.
+
+Finally, an analysis with a wider scope examines the future of Internet architecture, examining the question of the role of classical transit ISPs in the context of the modern Internet, and proposing again an evolutionary approach, leveraging existing if more recent work in IETF and the network service and equipment vendor community. 
+%\textcolor{red}{DH: edited up to here now .

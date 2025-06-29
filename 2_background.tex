@@ -1,0 +1,132 @@
+\chapter{Background}
+\section{History}
+At its most basic level the architecture of the Internet has not changed for 30 years.
+
+%%% \textcolor{red}{[Surely we can extend this to 40 years, or more ..? It depends on whether you want to talk exclusively about Internet architecture from the beginning or when EGP/BGP came along ...
+%%% 		]}
+
+%%% {\color{blue}
+%%% 	My meaning is that only since BGP came along has the architecture not changed - I would count the earlier period as related and relevant but not yet fully formed.
+%%% 	Until this point, arguably, something different could have emerged than the AS driven structure and the BGP invariants which are the context for the thesis.
+%%% 	But once BGP was stabilised the system `solidified'.
+%%% 	EGP is so different and more primitive than BGP so that BGP version 1 clearly marks a new development.
+%%% 	EGP did know about Autonomous Systems and 16 bit AS numbers, but had no idea about AS paths or loop prevention.
+
+%%% 	RFC 827 mentions that it is only good for tree-like graphs:
+
+%%% 	\textit{It is intended for  a  set of autonomous systems which are connected in a tree, with no cycles.  It does not enable the passing of sufficient information to prevent routing loops if cycles in the topology do exist}.
+
+%%% 	\textbf{NB Perhaps I should make this text into the actual document....}
+
+%%% }
+
+Most of the enhancements that enabled the $\sim$ x20 scaling from 1994 to today were defined and implemented 25 years ago, and the extension of AS numbers to 32 bits, 17 years ago.
+A summary of the important development stages in evolution of BGP includes:
+
+\begin{description}
+	\item [1984] EGP
+	\item [1989 – 1991] BGP-1, 2 and 3
+	\item [1994] BGP-4 and CIDR
+	\item [1996] Route Reflection (RFC 1996)
+	\item [1996] BGP communities (RFC 1997)
+	\item [1998] BGP multi-protocol extensions (IPv6) (RFC 2283)
+	\item [1998] BGP route flap damping (RFC 2439)
+	\item [2007] BGP 32-bit AS number capability (RFC 4893)
+\end{description}
+
+In this time frame the Internet evolved from pre-http applications (email, ftp, news), to the Internet of today, in which voice and video calling is a commonplace, and pre-recorded video traffic represents the great bulk of all Internet traffic, with http/html a universal medium for presenting the semantic content of the Internet to its users.
+
+\section{Current challenges in IDR}
+
+Industry reports \cite{kolman2015},\cite{Robachevsky2025IntroducingMANRS} show that the Internet suffers frequent, severe disruption from both unintentional and malicious sources, bringing with it substantial cost and wider societal impact.
+It need hardly be referenced to understand that Internet provision is an industry which is subject to commercial pressure, and a continuing requirement to deliver improved quality and volume of service at reducing cost.
+Finally, the increasing dependency of society, both as individuals and as organisations, on the Internet is indisputable, and carries increased expectations of reliability and reach, while at the same time the acceptable minimal levels of performance continue to rise.
+
+The nature of the challenge presented is complex, even when considered narrowly, as a technical problem which might admit of entirely new types of equipment and architectures.
+However, for any large ISP, the challenges are more complex still: ISPs have large investments in network equipment, which require years of service to repay; and their network stability, and thus service quality, is highly vulnerable to technical faults - just a single, simple, misconfiguration can lead to complete network failure, with potentially catastrophic impact on reputation, profitability and, if often repeated, even survival.
+Thus, for most existing large ISPs, the problem is a hard, multi-dimensional challenge - perhaps a genuinely ‘wicked’ problem in the formal, Management Science, sense \cite{Rittel1973DilemmasPlanning}.
+
+In this context the default response of the industry, both equipment vendors and service providers, is simply to continue as before - where the continuous, incremental, improvements in performance of network equipment are balanced out by correspondingly increased traffic volumes and other performance demands, while the operational properties of networks remain static.
+It seems unlikely, therefore, that these issues will be resolved anytime soon.
+
+%\textcolor{red}{DH: edited up to here now ...}
+
+\section{Problem statement}
+
+In current Internet architectures, transit ISPs and multi-homed stub networks have two principal mechanisms available to them to optimise route `quality', regardless of how they define quality - one mechanism is the ability to choose which, if any, offered routes they accept for their outbound traffic; the second mechanism operates on traffic in the reverse direction -  inbound - and is the ability to tag or selectively advertise routes, with the intention of steering inbound traffic through preferred peer AS networks.  Neither of these mechanisms is complex, and for most networks, most of the time, the simple `obvious' choices and actions are the best, or at least good enough.
+
+While this ISP route control objective was defined as `optimise quality', it could equally well have been expressed as `avoid poor routes', which immediately brings into focus the perspective of optimal routing being about responding to network impairment, as expressed in the first paragraph. This, therefore, provides a context for the following observation:
+
+\medskip
+
+The `four horsemen of the Internet' are:
+
+\begin{enumerate}
+	\item congestion;
+	\item equipment failure (software or hardware);
+	\item misconfiguration;
+	\item malice.
+\end{enumerate}
+
+There is no remote cure for any of these problems when the locus is in the domain of end-systems, or at another single-point-of-failure, but - when the problem lies in intermediate networks - then better routing may \textit{in principle} afford sufficient remedy to enable `normal service' to be restored, through the magic of re-routing, as long as there is at least one uncongested network path available that avoids the fault nexus.
+
+	{Unfortunately, conventional routing policy provides only the most basic mechanisms to address any of the depredations caused by the `four horsemen': of particular concern is that BGP cannot easily help solve the problem of re-routing around congestion, nor of responding `intelligently' to misconfiguration or malicious misinformation.
+		In practice, the default defence strategy against network problems is essentially a simple hierarchy of trust. Moreover, the same ranking of `technical trust' also serves to implement commercial policy, so essentially the default strategy is simply:
+		\begin{itemize}
+			\item filter completely implausible routes, even from commercially favoured peers;
+			\item otherwise, allow purely commercial policy to determine which unfiltered routes to select.
+		\end{itemize}
+
+		A fundamental aspect of this approach is that it is purely static, and as such is blind to any situational awareness.
+		The only dynamic aspect is protection against outright path failure.
+		And, as is the case in some IXP contexts, even that is not possible (this is a SDX shortcoming).}
+
+\subsection{The Problem}
+
+The subject of this thesis is the protection of Internet based services and service quality; in particular, addressing issues with traffic exchanged between ISPs under the control of BGP.
+Under normal conditions simple, static, policy is good enough to ensure that services run smoothly. However, in the most challenging of circumstances there is likely no policy that can adequately protect service quality.
+
+The challenge addressed in this thesis is to ensure that optimal policy is followed wherever there is a potential impact on service quality that could be avoided by appropriate routing level responses, and in particular where conventional approaches to BGP implementation are not optimal.
+To implement a new approach to BGP in a network is to either advertise different routes than would otherwise be the case, or to accept and action received routes differently, or both. In most cases the scope for optimisation lies in the choice of routes - selecting a different route usually then results in advertising a different route too.
+Implicit in this description is that the operational view of an ISP network is as if it is a black box, whose external behaviour is that of a single, distributed, router.
+
+\subsection{The Challenge of Commercial Viability}
+
+Much previous academic work in this field makes a set of over-simplifying assumptions that risk limiting the work's direct applicability, and in effect disregarding commercially significant aspects of the problem or solution.
+The proposition underlying the research presented in \textit{this} thesis is that the investigation of \textit{commercially viable} solutions leads to new and significantly more difficult questions, and has high potential for impact on future network evolution.
+This perspective demands that pragmatic academic research incorporate these commercial requirements, to ensure that solutions are relevant and potentially applicable for current and any realistically foreseeable networks.
+
+\medskip
+
+The principal additional requirements to be addressed by the research for this thesis are:
+
+\begin{description}
+	\item [performance and reliability] \textit{as good as or better than} existing classical router based networks;
+	\item[cost-effectiveness] by retaining existing equipment and thus protecting existing investment is highly desirable;
+	\item[capable of deployment without disrupting network service and with low risk] where low risk almost certainly entails an incremental deployment model with the capability to fall back to the original operating mode without service impact.
+\end{description}
+
+These business level requirements are essentially non-negotiable, and lead directly to the technical corollaries that form the basis of  experimentation work in  this thesis:
+\begin{itemize}
+	\item The solution must use existing network equipment and topology without disruption.
+	\item The solution should make use of existing protocols.
+	\item The solution should fall back automatically and non-disruptively to the ‘as-is’ operational mode.
+\end{itemize}
+
+\subsection{The Distributed Routing Problem}
+Solutions that seek to control existing BGP networks without disrupting the normal operational model face a significant challenge for acceptance, arising from the strengths of the distributed routing model used in most networks today.
+Their challenge is this: conventional BGP transit networks have a highly distributed routing process - nowhere in the system is there a single consistent global view of external network state, and neither is there a single point of control for any routing decision.
+The resulting lack of a single integration point for monitoring and control creates two challenges in building an external agent to optimise network routing: 1) how to monitor external network state, and 2) how to exert control over routing.
+Solving this problem is the central architectural level design challenge in this thesis, and can enable practical investigation of many types of `logically' centralised BGP policy implementations.
+
+\section{SDN and Future Internet}
+
+In later chapters, approaches to addressing the identified challenges in IDR will be motivated and designed.
+Inevitably, that analysis and design  intersects with related areas of discourse, often classified as `SDN' and `Future Internet'.
+This is more than a coincidence: the initial prospectus for this thesis was `A hybrid SDN approach for Inter Domain Routing', and the change of title is more a change of emphasis than a change of direction.
+So, it is possible to cast the practical work described in this thesis as an instance of an SDN system or architecture; equally, it can be presented as a contribution to the discourse on `Future Internet'.
+However, that choice is consciously avoided, and, as a consequence, it is not appropriate to address either `SDN' or `Future Internet' as `background' in this chapter.
+Rather, the history, concepts and motivation of `SDN' and `Future Internet' are presented later, in a single section, alongside a comparative analysis set against the propositions of this thesis.
+
+%\textcolor{red}{DH: edited up to here now ...}
+

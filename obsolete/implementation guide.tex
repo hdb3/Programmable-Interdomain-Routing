@@ -1,0 +1,290 @@
+\section{PIR test implementation guide}
+
+\subsection{functional components of PIR test environment}
+
+\subsubsection{server, OS, virtualisation host}
+
+The current server and OS are Ubuntu Linux 22.04 (laptop) and Ubuntu Linux 20.04 (rack mount server).
+Laptop has 32 GB RAM and 14 CPU cores (Intel i7-1280P), server 128GB RAM, 20 CPU cores (Intel Xeon D-1747NTE).
+
+Virtualisation support is standard Linux KVM/qemu managed with libvirt.
+Container technology is standard Docker.
+
+\subsection{virtual routers, software routers}
+\subsubsection{versions}
+
+\begin{enumerate}
+\item Cisco virtual router: IOSv - VIOS-ADVENTERPRISEK9-M - Version 15.7(3)M3
+\item Juniper virtual router: Junos VMX - JUNOS 18.2R1.9
+\item Bird.cz - BIRD2 - version 2.15.1
+\item frr - version 8.4.4 (installed via package manager in ubuntu24.04)
+\item OpenBGPD - version 8.6
+\item gobgp - version 3.35.0
+\end{enumerate}
+
+\subsubsection{build procedures - Docker images}
+
+\begin{enumerate}
+\item Bird2 and OpenBGPD are built from source
+\item frr is installed as an ubuntu package
+\item gobgp is installed as a binary from OSRGs github repository.
+\end{enumerate}
+
+\subsubsection{build procedures - virtual router images}
+
+\begin{enumerate}
+\item <reference source file directory>
+\end{enumerate}
+
+A custom configuration tool was developed for both Cisco and Juniper as an 'expect' script which drivers a clean router instance by invoking command line scripts which copy in the configuration files based on the router role requested.  The configuration files consist of 'standard' IOS and Junos configuration CLI commands.
+The scripts allow many full router configurations to be maintained and updated and used on demand to (re-)create the desired set of routers for an experiment.
+
+A virtual router is built from a suitable 'qcow2' image using the 'virt-install' tool and nominating the OS variant as freebsd12.0'.
+
+Junos images are assigned 4Gb RAM and use 'virtio' network drivers.
+
+Cisco images are assigned 2Gb RAM and use 'e1000' network drivers.
+
+The virtual image builder is developed under the project heading 'kagu'.
+
+\subsection{libvirt network environment}
+
+\subsubsection{AS internal network}
+The 'core' managed AS network is configured as two libvirt network corresponding to two Linux virtual bridges.
+The internal AS network is assigned to one network/bridge, and all internal interfaces are in a single L3 network, mapped to a single L2 domain.
+
+The AS internal network is also the attachment point for the hbgp controller.
+
+\subsubsection{external links}
+Direct connections to external routers are mapped to a single second libvirt network bridge.  Because links are all defined as point-to-point /30 networks there is no 'leakage' of traffic between links, even when the traffic is routed, i.e. source and destination different to link addresses.
+
+\subsubsection{external router remote networks}
+For transparency and ease of diagnosis and monitoring, the external routers are assigned local interfaces in isolated additional libvirt network bridges.  Because libvirt networks may not be moved to alternate network namespaces, the host systems used for end-to-end connectivity check are set in isolated network namespaces and use veth  pairs to make onward connection to the libvirt bridges.
+
+Traceroute and network packet capture are used to confirm that the actual packet paths are as expected, and especially that the packet path between the end hosts passes though all four virtual routers on its journey.
+
+\subsection{Naming and addressing}
+
+The configuration for managed VMs is:
+one interface attached to internal bridge (IBGP) - br\_internal
+one interface attached to per ASBR external local bridge - br\_external\_1/2/3
+
+The configuration for external VMs (x2) is:
+one interface attached to ASBR external local bridge - br\_external\_1/2
+one interface attached to remote internal bridge - br\_remote\_1/2
+
+other connected endpoints
+end-system connectivity check (x2) attached to remote internal bridge - br\_remote\_1/2
+hbgp controller - attached to internal bridge (IBGP) - br\_internal
+
+
+\subsection{addressing}
+
+\subsubsection{AS internal network}
+bridge: br\_internal
+subnet: 192.168.120.0/24
+controller is at 192.168.120.99
+ASBRs are at 192.168.120.2,3,4
+
+\subsubsection{managed AS connected external links}
+
+links to external peers are all in /30
+network addresses are 172.19.X.Y/30
+where the X $\in$ \{0,1,2\} denotes which ASBR hosts the link, and Y increments for every connected link
+E.g. ASBR1 has a link 7.0.0.1/30 to the first external peer on 7.0.0.2
+
+\subsubsection{remote external networks}
+The inter-connected used to test connectivity over the managed AS are hosted by peers external1 and external2,
+
+the connected networks are
+external1 : 172.19.0.0/24
+external2 : 172.19.1.0/24
+
+the router interfaces, and thus default g/w in these nets are at 172.19.N.1
+the host system addresses used for connectivity verification are 172.19.N.3
+
+\subsubsection{AS numbers}
+The managed AS is AS65000
+The external ASs are AS65001 and AS65002
+
+\subsection{Router Specific configuration}
+
+The juniper/junos configuration of ASBR1 is given here almost completely.
+The only excised configuration statements are those related to login credentials etc.
+
+Annotations explain the significance of particular configuration items.
+\begin{lstlisting}[title=Physical Interfaces and global settings]
+nic@jbr3a# show | display set
+set version 18.2R1.9
+set system login user nic uid 2000
+set system login user nic class super-user
+set system host-name jbr3a
+.....
+set interfaces vtnet0 unit 0 family inet address 192.168.120.2/24
+set interfaces vtnet1 unit 0 family inet address 7.0.0.1/30
+set interfaces vtnet2 unit 0 family inet address 7.0.0.5/30
+
+set routing-options autonomous-system 65000
+set protocols bgp accept-remote-nexthop
+set protocols bgp hold-time 0
+\end{lstlisting}
+
+\begin{lstlisting}[title=IBGP peers - import and export policy are open\, so all known routes are announced]
+set protocols bgp group internal-peers type internal
+set protocols bgp group internal-peers import open
+set protocols bgp group internal-peers export open
+set protocols bgp group internal-peers neighbor 192.168.120.3
+set protocols bgp group internal-peers neighbor 192.168.120.4
+\end{lstlisting}
+
+
+\begin{lstlisting}[title=default class for external peers]
+set protocols bgp group external-peers type external
+set protocols bgp group external-peers import open
+set protocols bgp group external-peers export open
+set protocols bgp group external-peers neighbor 7.0.0.2 peer-as 65001
+\end{lstlisting}
+
+
+\begin{lstlisting}[title=special group for the controller - note the add-path statements]
+set protocols bgp group controller type internal
+set protocols bgp group controller import open
+set protocols bgp group controller export open
+set protocols bgp group controller neighbor 192.168.120.99 family inet unicast add-path receive
+set protocols bgp group controller neighbor 192.168.120.99 family inet unicast add-path send path-count 5
+\end{lstlisting}
+
+
+\begin{lstlisting}[title=special case external peers\, will get higher local pref and thus may disrupt connectivity]
+set protocols bgp group external-pref-peers type external
+set protocols bgp group external-pref-peers import p1
+set protocols bgp group external-pref-peers neighbor 7.0.0.6 peer-as 65001
+\end{lstlisting}
+
+
+\begin{lstlisting}[title=policy definitions used in earlier clauses.]
+set policy-options policy-statement open term 1 then accept
+set policy-options policy-statement p1 term t1 then local-preference 200
+\end{lstlisting}
+
+\section{Test Report}
+
+Showing the various observations and actions used during the 3 BR ADDPATH Test Case (Adverse Route on Same Router)
+
+\subsubsection{Route Table Display}
+
+\paragraph{Initial State}
+\paragraph{Initial State}
+\begin{lstlisting}[title=As seen at ASBR1]
+172.19.0.0/24      *[BGP/170] 00:09:45, localpref 100
+                      AS path: 65001 I, validation-state: unverified
+                    > to 7.0.0.2 via vtnet1.0
+\end{lstlisting}
+
+\begin{lstlisting}[title=As seen at ASBR2]
+172.19.0.0/24      *[BGP/170] 00:01:43, localpref 100
+                      AS path: 65001 I, validation-state: unverified
+                    > to 192.168.120.2 via vtnet0.0
+\end{lstlisting}
+
+\paragraph{Disrupted State}
+\begin{lstlisting}[title=As seen at ASBR1]
+172.19.0.0/24      *[BGP/170] 00:00:12, localpref 200
+                      AS path: 65001 666 I, validation-state: unverified
+                    > to 7.0.0.6 via vtnet2.0
+                    [BGP/170] 00:14:00, localpref 100
+                      AS path: 65001 I, validation-state: unverified
+                    > to 7.0.0.2 via vtnet1.0
+\end{lstlisting}
+
+\begin{lstlisting}[title=As seen at ASBR2]
+172.19.0.0/24      *[BGP/170] 00:03:00, localpref 200
+                      AS path: 65001 666 I, validation-state: unverified
+                    > to 192.168.120.2 via vtnet0.0
+\end{lstlisting}
+
+\paragraph{After Remediation}
+\begin{lstlisting}[title=As seen at ASBR1]
+172.19.0.0/24      *[BGP/170] 00:00:31, localpref 1000000, from 192.168.120.99
+                      AS path: 65001 I, validation-state: unverified
+                    > to 7.0.0.2 via vtnet1.0
+                    [BGP/170] 00:00:31, localpref 200
+                      AS path: 65001 666 I, validation-state: unverified
+                    > to 7.0.0.6 via vtnet2.0
+                    [BGP/170] 00:08:11, localpref 100
+                      AS path: 65001 I, validation-state: unverified
+                    > to 7.0.0.2 via vtnet1.0
+\end{lstlisting}
+
+\begin{lstlisting}[title=As seen at ASBR2]
+172.19.0.0/24      *[BGP/170] 00:00:48, localpref 1000000, from 192.168.120.99
+                      AS path: 65001 I, validation-state: unverified
+                    > to 192.168.120.2 via vtnet0.0
+\end{lstlisting}
+
+
+\subsubsection{traceroute}
+\begin{lstlisting}[title=traceroute for normal state\, showing dataplane transit through four virtual routers]
+nic@xps9320:~/src/kakapo$ ip netns exec default4  traceroute 172.19.0.3
+traceroute to 172.19.0.3 (172.19.0.3), 30 hops max, 60 byte packets
+ 1  172.19.1.1 (172.19.1.1)  0.490 ms  0.432 ms  0.416 ms
+ 2  7.0.1.1 (7.0.1.1)  1.448 ms  1.434 ms  1.418 ms
+ 3  192.168.120.2 (192.168.120.2)  1.972 ms  1.955 ms  1.941 ms
+ 4  7.0.0.2 (7.0.0.2)  2.385 ms  2.368 ms  2.354 ms
+ 5  172.19.0.3 (172.19.0.3)  2.707 ms  2.693 ms  2.676 ms
+nic@xps9320:~/src/kakapo$ ip netns exec default4  traceroute 172.19.0.3
+\end{lstlisting}
+
+\begin{lstlisting}[title=traceroute report when the adverse route is not mitigated]
+traceroute to 172.19.0.3 (172.19.0.3), 30 hops max, 60 byte packets
+ 1  172.19.1.1 (172.19.1.1)  0.400 ms  0.368 ms  0.351 ms
+ 2  7.0.1.1 (7.0.1.1)  0.998 ms  0.983 ms  0.968 ms
+ 3  192.168.120.2 (192.168.120.2)  1.570 ms  1.555 ms  1.540 ms
+ 4  172.19.1.2 (172.19.1.2)  1.362 ms  1.347 ms  1.331 ms
+ 5  172.19.1.2 (172.19.1.2)  1.314 ms  1.300 ms  1.284 ms
+\end{lstlisting}
+
+\begin{lstlisting}
+nic@xps9320:~/src/kakapo$ ip netns exec default4  fping 172.19.0.3
+ICMP Port Unreachable from 172.19.1.2 for ICMP Echo sent to 172.19.0.3
+ICMP Port Unreachable from 172.19.1.2 for ICMP Echo sent to 172.19.0.3
+ICMP Port Unreachable from 172.19.1.2 for ICMP Echo sent to 172.19.0.3
+ICMP Port Unreachable from 172.19.1.2 for ICMP Echo sent to 172.19.0.3
+\end{lstlisting}
+
+
+\subsubsection{outage measurements}
+
+\begin{lstlisting}[title=fping reported outages at 5 second intervals]
+nic@xps9320:~/src/kakapo$ ip netns exec default3  fping -Q 5 -l -o -p 10 172.19.1.1
+172.19.1.1 : xmt/rcv/%loss = 491/491/0%, outage(ms) = 0, min/avg/max = 0.989/2.83/4.17
+172.19.1.1 : xmt/rcv/%loss = 486/466/4%, outage(ms) = 200, min/avg/max = 0.857/2.85/4.65
+172.19.1.1 : xmt/rcv/%loss = 490/490/0%, outage(ms) = 0, min/avg/max = 0.950/2.99/4.69
+172.19.1.1 : xmt/rcv/%loss = 491/491/0%, outage(ms) = 0, min/avg/max = 1.15/2.99/4.83
+172.19.1.1 : xmt/rcv/%loss = 492/492/0%, outage(ms) = 0, min/avg/max = 0.402/2.33/4.27
+172.19.1.1 : xmt/rcv/%loss = 491/491/0%, outage(ms) = 0, min/avg/max = 0.443/2.47/4.04
+172.19.1.1 : xmt/rcv/%loss = 491/491/0%, outage(ms) = 0, min/avg/max = 0.617/2.67/4.53
+172.19.1.1 : xmt/rcv/%loss = 492/492/0%, outage(ms) = 0, min/avg/max = 0.373/2.16/8.40
+172.19.1.1 : xmt/rcv/%loss = 490/490/0%, outage(ms) = 0, min/avg/max = 0.696/2.90/4.40
+172.19.1.1 : xmt/rcv/%loss = 492/492/0%, outage(ms) = 0, min/avg/max = 0.489/2.27/4.55
+172.19.1.1 : xmt/rcv/%loss = 491/491/0%, outage(ms) = 0, min/avg/max = 0.679/2.90/4.38
+172.19.1.1 : xmt/rcv/%loss = 490/450/8%, outage(ms) = 400, min/avg/max = 0.784/2.93/4.38
+172.19.1.1 : xmt/rcv/%loss = 492/490/0%, outage(ms) = 20, min/avg/max = 0.478/2.82/6.09
+172.19.1.1 : xmt/rcv/%loss = 492/492/0%, outage(ms) = 0, min/avg/max = 0.536/2.23/4.12
+172.19.1.1 : xmt/rcv/%loss = 491/491/0%, outage(ms) = 0, min/avg/max = 0.713/2.83/4.31
+\end{lstlisting}
+
+Two samples show transient disruption of the dataplane
+
+in line 3, 200 mS, this is the event during which adverse route is received, initially accepted by the receiving ASBR, but subsequently mitigated under instruction of the controller.
+
+In line 13 the trigger for interruption is the withdrawal of the adverse route.
+
+Notice that the time to remediate is 200mS, but when the adverse route is withdrawn the outage is 400ms.
+
+It seems counter-intuitive that restoration should be disruptive - the explanation is that the original route is no longer announced in IBGP, and cannot be until the override is withdrawn.
+The delay consists of 200mS at the route announcing ASBR and 200mS more at the other dataplane active ASBR.
+The interruption could be mitigated, possibly to zero, by staggering the withdrawal messages from the controller.
+
+
+\subsubsection{BGP Packet Capture Analysis}

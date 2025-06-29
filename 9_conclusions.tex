@@ -1,0 +1,388 @@
+\chapter{Conclusions}
+\section{Agenda}
+
+In the extended analysis of related work, many different strands were drawn in, some with less obvious relevance than others.
+
+One goal in this section is to articulate the relevance of those disparate strands.
+
+Another is to highlight the role of this work and this thesis to the writer, the academic community, the industry and society in general.
+
+In carrying out this work, the discoveries looking outward at the community and society context were as unexpected and enlightening as the discoveries in the field.
+
+
+
+
+\section{Review}
+
+\section{Retrospective}
+
+During the period of study and research the field itself evolved - technologies which were in development at the beginning became mainstream - e.g. BGP ADDPATH \cite{rfc7911} and BMP \cite{Fernando2016}.
+
+\begin{itemize}
+    \item The significance of SDN changed - P4 emerged as the successor to OpenFlow - but died before it's parent.
+    \item The threats to Internet security, performance, reliability evolved, but with no dramatic change of trend lines.
+    \item BGP security improved as a result of better operational practice, but BGP Sec\cite{rfc8205} remained a research and experimental preposition rather than a significant contribution to Internet security
+    \item The Death of Transit \cite{Huston2017} became ever more imminent, but never quite reached.
+    \item IXPs grow ever more important in share or Internet traffic, but with no signs of following the path towards 'iSDX'.\cite{Gupta2016}
+    \item An  excellent proposition for detecting BGP routing attacks (Artemis, 2018, \cite{Sermpezis2018}) remains unused, perhaps because there is no method to apply its insights in a production network.
+\end{itemize}
+In other words, the Internet evolved in predictable directions, but many of the pressing needs of 2016 are still pressing in 2025.
+
+A cynic might observe that the offerings from academia failed to have an impact, but perhaps a fairer analysis is that there was little offered of substance.  The reason for this is perhaps that the problems are hard, and that other agents with deeper pockets and more focus have not either made any progress.
+
+\section{PIR - Conclusions}
+
+The implementation and evaluation showed that 
+\begin{itemize}
+    \item clean slate BGP implementation for practical studies is feasible
+    \item modern high-level software development techniques can compete with, or out-do, classic 'C', even for performance and scale
+    \item it is possible to introduce flexible programmability into production scale BGP networks
+    \item the key challenge of adding a low impact control-overlay on existing IBGP systems is practical and effective (the Artemis use-case)
+    \item there is a clear path towards BGP control systems that can run at far higher rates than anything existing, enabling more centralised fine grained control than currently feasible.
+\end{itemize}
+
+Unlike earlier research offerings, there is now a basis for building and evaluating novel control architectures for Internet scale systems.
+The remaining questions are about how to `productise' the capability - whether even the limited risk of the design of PIR would be acceptable in production networks.
+
+A side outcome of the work is a novel framework for evaluating the scalability of any BGP system, and some interesting insights into the problems of characterising BGP performance.  No other published work shows the sensitivity to measurement parameters, load profiles and peer configurations.  Until now, the gold standard for measuring BGP scalability an performance was a python framework, excellent in its scope as a functional tool, but never designed to measure either scale or performance.  
+
+\section{Beyond PIR - Future Work, Evolution of the Internet}
+
+It is feasible that in future, large ISPs, transit or other, may deploy applications which interact with their production networks at the BGP level, in contrast to the current state, in which the lines are only slightly blurred by the use of virtualised routers \footnote{see for example Juniper application note referencing the use of their `vRR' product as an IXP Route Server: \url{https://www.juniper.net/documentation/en_US/day-one-books/topics/topic-map/route-server-implementation.html}} which are simply software only versions of the same control-plane software that runs on hardware routers.
+
+In contrast, PIR represents a strategic change, in which the separation of roles hinted at in RCP,\citetitle{Feamster2004} (\citeauthor{Feamster2004}, \citeyear{Feamster2004})~\cite{Feamster2004}., and also, in quite different context, in RFC9087, becomes real.  But there is a more nuanced issue in play: when the AS internal BGP architecture becomes differentiated, what different roles are created, and what rules are required to ensure that routing integrity is not compromised? And how even may we be sure what represents a compromise of routing integrity?
+
+Because in truth, differentiated roles exist already - ever since RFC4276 BGP was introduced - in the distinct roles of ASBR and internal peer, soon thereafter extended to include Route Reflectors.  But, the essence of this core `ur-BGP' is that the locus for route selection decisions is distributed, and, distributed exclusively, to the ASBR.  RCP proposed to change that, but the evolution of Route Reflectors which `solved' the immediate problem that RCP targeted, firmly placed the role of Route Selection back into the realm of the ASBR, and delegated the Route Reflector to a much simpler, passive role than RCP would have had it.
+
+RFC9087 skirts the issue - one could describe the architecture as one in which fine-grained configuration is introduced as a solution - i.e. rather than admit new roles in the BGP control plane, RFC9087 extends the role of the management plane, forcing the control plane to apply more fine-grain `policy'.  This highlights the distinction between `policy' and `control', in which the BGP architecture insists on `policy' as the underlying semantics of BGP configuration, thereby excluding from \textit{BGP} `policy' anything which cannot be expressed simply as a set of router configuration statements.
+
+\subparagraph{What PIR and RCP both attempt}
+ is to break this core, `ur-BGP' structure for IDR, and thus for the classical transit ISP.
+ 
+ In contrast, iSDX attempted something similar, but additionally  implicitly proposing to relocate the locus of policy application completely out of the transit (or access) ISP, into a new domain.  Arguably, this (iSDX)\footnote{whether iSDX correctly identified or addressed pressing concerns for ISPs is a different question \ldots} solution architecture was motivated by the realisation that making such changes in the existing IBGP/AS based architecture was not possible, or at least too hard, for the reasons shown in depth in this thesis. 
+
+ The essence of the structure which is to be broken, by PIR, or by RCP, or perhaps by an iSDX controller,
+ 
+ \footnote{note that the contrasting philosophy in xBGP\cite{Wirtgen2020}
+ is an acknowledgement of the problem - how to influence route selection other than via router configuration - but addressed by adding an internal look-aside / escape hatch into existing routers.
+ Note that this is in essence the same solution as the hypothetical proposal to replace every existing ASBR router software with an instance of \hbgp - the difference being that xBGP implicitly suggests that the entirety of ISP requirements for enhanced Route Selection can be expressed as small fragments of `C' code, limited to a predefined API, and executed in a stateless, sand-boxed context.
+ %%% \NH{maybe need to expand on this theme elsewhere?}  
+}
+is the special role of the ASBR\footnote{when it is understood that an IBGP session is essentially a read-only view mechanism, it allows any BGP network to be reduced to simply the ASBRs, which are responsible for applying `policy' only to routes they receive over EBGP, and share, with already calculated `preference' with other ASBRs in their local AS.}
+
+The problems and complexities of adapting this stem from the fact that ASBRs perform the task of summarising external route state, and in doing so apply policy such that the state visible elsewhere in the local AS is so reduced that no additional effective policy system can be applied.  So, to modify the role of an ASBR is to alter or remove it's freedom and role of route summarisation, and, implicitly, its role as sole route evaluator.
+
+But, this has inherent dangers: the basis of AS internal routing consistency is that route evaluation is consistent - any thing else will lead directly to routing loops and lost packets.
+
+Secondly, the route `flooding' mechanism in BGP is designed to support the assumption that ASBRs are the only source of routes\footnote{not strictly true, when an AS originates its own routes - but such routes must be distributed with the same level of consistency as external routes via ASBRs}.
+
+Therefore, any modified schemes must accommodate the BGP AS internal route flooding requirement.  But, this is a logically trivial exercise, if rather complex in practice, unless there exist Route Reflectors which can be effectively used to accomplish the route flooding function.
+
+But, this already pre-supposes much about some modified scheme - the problem is, if we are intent on changing BGP AS internal architecture, how much is preserved, and how much replaced or changed to the point of incompatibility?
+
+A core question when approaching changes to BGP internal architecture is whether existing components have to change to work in the new system, and, if they do not have to, whether they can still benefit from the changes.  Route reflections is an example of such a change - RR clients need have no awareness of their role as RR clients (but, rather large configuration changes would be expected, so the migration is not seamless, merely not requiring software change, and, as importantly, allowing incremental roll-out.
+
+If we are to contemplate reworking BGP internal architecture, a first crucial question is whether it will consist of either, or both of non-functional change for existing components, and compatible/incrementally deployable change.  RR meets both criteria.
+
+\paragraph{The Limits to BGP transit AS Evolution?}
+
+Ultimately the scope and appetite for change in existing Internet systems is limited by practical and commercial considerations: even if a transit AS could be locally optimised to a point of near perfection, which is perhaps more easily defined than the means to achieve it, the questions that always must be answered are, at what price and with what risk?  Transit ISPs operate by selling services to stub AS operators - access networks and content providers.  Already, those stub AS customers circumvent transit for a large and increasing traffic volumes, and in many cases that traffic is also the most `valuable', in the sense that service impacts for that traffic represents the most  sensitive for customer satisfaction and thus commercial importance.
+In many cases, a single transit service may not even be the only `hop' on the path for traffic carried by the transit AS.
+Therefore, there are limits to how much more a stub AS operator may pay for transit service, however much `better' it may be; and, a transit AS customer might rightly be sceptical about how much better in practice a particular transit ISP service may be.  In short, for a transit ISP, the best that can be hoped for is that having `better' transit service than any other competitor is a customer retention and incremental product differentiator - a justification for retaining `premium' service ratings, for an existing `premium' rated ISP - but unlikely to create a new price structure which would motivate any substantial investment.
+It's arguably much more likely that the prime appeal to transit ISPs of any change in their BGP infrastructure is reduced cost - cost of operations, enabled by automating existing more manual procedures, and reducing the overhead of having to respond case-by-case to performance or security issues - or, cost of equipment, possibly by enabling substitution of white label systems for proprietary equipment, or enabling lower tier software licences by virtue of achieving operation improvements without paying their existing suppliers for premium software features.
+
+The existential question then is whether wholesale architectural change is ever likely to arrive commercially in the field of classical IP transit.  In this context, the `light touch' overlay of PIR/BGP Protection perhaps represents the limits of what is reasonable to expect in the context of existing Business-As-Usual IP transit networks.
+It's not to say that, as existing network providers upgrade their infrastructure, possibly driven by related market demands, rather than transit, that more substantial change in offerings and architecture could not emerge in specific cases.
+
+%%% \paragraph{Where else to apply BGP evolution, if not transit?}
+%%%% \NH{stranded section}
+\paragraph{Classical AS level BGP Operation}
+
+It may be helpful to project the function of an AS system having multiple ASBRs as a single logical ASBR: if this paradigm is accepted, then we can assert that certain properties and functions must be implemented within this logical ASBR.  In the case of RCP, the logical ASBR was directly implemented as an actual single instance of a BGP ASBR, but one having no actual forwarding plane function - in current terminology, a Route Server, rather than a Route Reflector.  In this virtual single ASBR there is still the need for core functions: route evaluation, and route comparison (application of a `best path' algorithm).  In conventional BGP the functions are separated, logically, and in part physically.  In the single virtual ASBR there exists just one RIB holding best-path chosen routes, and all RIB-IN and RIB-Out are derived directly from the central RIB.  Note, this model excludes IGP based route preference (`hot-potato routing') - and therefore already exposes potential limitations of any new architectural approach: which is that there is already some allowance in core BGP for something like `neighbour-specific BGP' - and that therefore the goal of relocating route evaluation and route comparison/selection is not easily centralised!  However, the analysis is useful - in reassigning roles from ASBRs to other agents in an AS, the essential question is where is responsibility for route evaluation, and where for route selection?  In ur-BGP the answers are simple: only in the ASBR: route evaluation is done at first point of route reception, 
+
+% Whether RCP was conceived as simply reducing
+% are which is the essence of PIR
+
+In truth, this is the practical boundary between the current paradigm - which is that custom and programmatic control is widely applied in the configuration domain (management plane), but in the control-plane - dynamic interaction with routing protocols - ISPs refrain from interfering with the behaviour of their proprietary and unevolved (historic, outdated?) network.
+\NH{stranded section}
+
+However, the centre of power is moving (or perhaps, the real centre of power is becoming clear).
+
+The only 'real' actors in the Internet are the owners, or representatives, of the endpoints - transit ISPs, and IXPs, exist only because content and eyeballs find them useful.  When transit or IXP is not wanted or needed, no tears will be shed, and perhaps packets will flow even more smoothly.
+
+But, this is a reductionist argument - `packets will flow' - as long as best-effort delivery is the only currency, then the zero-sum game analysis applies, and transit ISPs become just the delivery mechanism of last resort.
+
+However, in today's internet the traffic volumes and content hosting topologies no longer match the simple model.
+
+In 
+`Can We Save The Public Internet?' \cite{blumenthal2024} and `Revitalizing the public internet by making it extensible' \cite{Balakrishnan2021}
+
+the argument is made that there is a valuable and vulnerable `thing' which we should call the `Public Internet', and this `thing' is under threat, and we should strive to preserve it.
+
+In these papers, the threat to the Public Internet is not fully defined, but is perhaps consistent with Tim Wu's `Net Neutrality' \cite{wu2003network} concept from 2003, and directly references Huston's 2017 \citetitle{Huston} \cite{Huston}.
+
+The question perhaps should be whether the Public Internet, as narrowly defined in this way, is really something of intrinsic value.
+In the case of Wu, Huston and Balakrishnan the specific `protected attributes' vary somewhat, but a common aspect in Wu and Balakrishnan is about rights of competing commercial entities - the argument that consumer interests, let alone interests of the ultimate content providers are affected is advance more as defence of naked commercial interest than as primary concern.
+
+Another answer to the question about the `Public Internet' may be this:
+
+The concept of a single, unified "Internet" is a myth; in reality, it is a fragmented collection of privately controlled networks where universal connectivity is not guaranteed and end-users have no meaningful control over how their data is routed.
+
+\paragraph{A longer version of this argument is}
+
+The internet does not exist as a separate, discrete, and definable single entity.
+We might describe it as more like a capital city than a cathedral, with no clearly defined boundaries. Its property, that one can travel by foot throughout, whilst true, does not distinguish it from smaller towns and villages, only does its size and complexity.
+
+Nor is this universal pedestrian accessibility its precious property, and, if it is a city, it is a city composed of many islands, the special innovation of IP. 4 Is that it is not a complete system - it requires lower level protocols to complete it (and the emergence of Ethernet as a near-universal underlay is perhaps almost as remarkable as that of IP itself.)
+An ultimate irony of IP and the internet is that it is already split by IPv4 and IPv6, and increasingly between TCP and QUIC, so there is already no unity or completeness.
+
+External connectivity \textit{into} access networks, even where they have a well-known IP address, let alone by domain name, was broken before even CGNAT and IPv6-only access were introduced; connectivity originated from unaided IPv6 alone is also broken;  everywhere, countries and network providers block DNS or IP. Geofencing is everywhere. Arguably, DNS is much more complete than end-to-end IP. The one constant, absent AS-hijacks and BGP attacks, is the uniqueness of IP addresses, \textit{but not the connectivity between them}.
+
+Ironically, users have less control or property rights in their IP addresses than they do in their telephone numbers, and for most,  their email addresses have the same lack of control. The sacrosanct IP address of a service advertised DNS is not guaranteed to be advertised in BGP -  IP address owners are free to use or not, or to announce or not, an IP address; and, if announced at all, peers are free to accept it or not. So, the internet is nothing more than a convention, a gentleman's agreement between networks that conform to the local convention, rules, and market forces of their end-users. And, unlike banks or airlines, an interconnect via BGP is uncontrolled  by external regulation.
+
+So, the internet is nothing more than a convention, a "gentleman's agreement" between networks, restricted arbitrarily, to conform to local conventions, rules, and the market forces of their end-users. Unlike banks or airlines, interconnects via BGP are uncontrolled - there are no blocks on AS-path prefixes, and so it ever was - only the access ISP apply control - to their customers.
+
+
+Two service providers may meet at an IXP, and the routes and traffic they exchange \textit{may} be over public addresses, and these addresses \textit{may}, in some sense, be directly owned by them, or legitimately announced on behalf of another, privately controlled party: in short, the distinction between a private IP network and the public internet is only in the eyes of the observer, not the service providers or their customers.
+
+
+Meanwhile, service provider \textit{customers} never even see the BGP announcements for their own addresses, or of the routes to the services they use.
+While the customers may run their own recursive DNS, they cannot get the same access to their routes. This is one of the most common complaints from academics looking to make the internet better, yet it is almost the only common denominator of every access service in the world: your ISP does your routing: if you don't like it, then get an AS number and become an ISP yourself, and, of course, also pay for the Layer 2 and IXP access that would require.
+
+So what about net neutrality? Well, what about it? It does not exist and it never has. It is an attempt, and only in some countries, to regulate the quality of interconnections between service providers, and address imbalances of commercial power, between service providers. 
+
+The fact that there are no rules for ISPs between themselves does not extend to the relationship between ISPs and their users - rather the opposite. Users get the ISP service that their government and economic system dictates. Increasingly, this may mean that Facebook Messenger is more reliable than SMS, email, or ICQ, and that Netflix content is accessible when a public service broadcast is not.
+
+\paragraph{So what does this all mean?}
+ Only two rules are observed:
+  \begin{myitemize}
+      \item ISPs own the public IP's
+      \item DNS is also sacrosanct, but also owned
+     \end{myitemize}
+  
+ \textit{ While an ISP} may restrict their customers access to specific DNS or IP routes, but if they do allow it, they respect their ownership, if not any particular routing path.   \textit{Respect for the property, but not the citizen.}
+
+But, respect does not equate to invariance: in the case of DNS, for example, there is widespread use of source and context aware DNS systems to manage traffic in fine grained ways, either directly, by dynamically modifying DNS responses in real time, or, by advertising variant host names at application level, and thereby steering bulk traffic streams over different paths and to different servers.  The point is that the ISP `respects' the domain owners authority in the realm of DNS, just as a content provider `respects' the ISP primacy in regard to their address and routing schemes. 
+
+ 
+ In general, ISPs do not use transit to connect to anything - the bulk of traffic on the internet passes via direct peering or through embedded services, and ISP customers have no knowledge or choice of which is in use. \textit{ Respect for the property, but not the citizen.}
+ 
+The foregoing argument has, if you choose to see it, socio-politico-economic perspective.   The internet, perhaps, is the collective property of the commercial interests that support it, and increasingly the political forces which inhabit the same space.
+
+% But from the users' perspective, the Internet is like the roads, paths, canals that pass their houses; and like train service and airline routes, and pack-mules and carrier pigeons.  Governments and private companies may have essential roles in upkeep of important parts, but they do not own it or control it.  But it makes no sense to say, the Internet is in danger, any more than that, transport is in danger.  
+
+% Except for the addresses, and names.  But, you can have an address, yet live on an island that no one can reach.
+
+% One more analogy: what is BGP?  BGP is like the ocean.  It joins everything.  The reason that the Internet succeeded (I argue), is that a global addressing scheme, and name resolution scheme was realised, and that BGP made it possible to connect the pieces.  The principle function of BGP is to share between two networks their view of the wider world, without any more addition of detail than needed to make the system stable.  And when reduced to links within an AS, the same, to share what they know, with as little annotation as possible. 
+
+\subsection{Another Future Internet}
+\subsubsection{Another Future Internet - Prelude}
+
+\paragraph{A candidate definition of `Public Internet'} can be drawn from the analysis of the remaining in variant attributes, implicitly accepting that whatever seemed fixed, but is evidently not fixed, is simply a transient characteristic.  The invariants identified in the preceding section were:
+\begin{myitemize}
+  \item public IP address space
+  \item public DNS data
+ \end{myitemize}
+ to which we might add:
+   \begin{myitemize}
+  \item BGP routing integrity (what is now called MANRS\cite{Davidson2018})
+ \end{myitemize}
+ But note that conforming to MANRS does not require adherence to any network model or topology, only that where used, BGP announcements should be treated with `respect', and care, analogous to the approach to DNS and address ownership generally.
+
+ The reason for adherence to these rules - and, in practice, the shunning and isolation of networks that break them - is simple.  They are the minimal set of rules which protect the service providers from chaos, and therefore failure (commercial, or institutional).
+ 
+ Networks that break such rules, or allow  their connected `customers' to break these rules, in ways that might or do cause damage, are summarily disconnected, firewalled or otherwise mitigated, by each ISP acting independently, without recourse to any central authority.  It is not the `rule breaking', \textit{per se}, which motivates the response, it is the impact of the rule breaking.  Rule breaking which proves in practice to be harmless might be mitigated out of caution, but in the long run more likely the rules will become less strict or more closely defined, if the `rule breaking' proves harmless, and especially if it proves to be `profitable'.
+
+ The judgement as to whether rules have been broken is made repeatedly and possibly inconsistently, and driven almost entirely by defensive goals, and based purely on technical analysis of the threat and thus the mitigation which is most effective but otherwise least disruptive of `normal', `legitimate' traffic.
+
+ Therefore, we can find perhaps a more fundamental rule of the Internet than these three, which is that the Internet will allow anything what does not disrupt its existing operation.
+
+ What is then is \textit{this} Internet, whose operations may be disrupted?
+ 
+ It's simple: it is whatever can be disrupted when these attacks occur.  This may seem like a recursive definition, but, if it is, it has a well-defined termination and is thus useful and simple to enumerate, at least in principle.
+
+ A way to phrase this is as the `blast radius', or as a scope of vulnerability.
+
+ A more nuanced distinction is needed in order to distinguish Internet as a connectivity service, and Internet delivered content or application, and this reflects directly on the concerns expressed in Balakrishnan \cite{Balakrishnan2021}.  The boundary between connectivity and content is becoming blurred by the virtualisation of computing resources and the rise of `edge computing', and for the conservative observer this seems to induce an irresolvable conflict. Curiously, when the edge function is limited in scope, to simple caching of content which is `properly' hosted in another AS to the consumer, no objection arises, even though the service viability relies entirely on the operation of the cache system - and when the hyperscalers build around the classical internet, through ubiquitous presence at IXPs, the objection is not raised.  Wu takes a more purist perspective - effectively decrying any strategy which disadvantages content providers that are not able to technically and commercially partner access ISPs.
+
+ It might be argued that Wu is not attempting to \textit{define} `the Public Internet', merely to regulate it.  But there is an implicit definition being made, which is that the service structure accessed by consumers through ISPs should be regulated, but Wu does not apply the same logic to other services that some ISPS (for example cable operators) might offer over the same physical infrastructure - i.e. broadcast or on-demand video.  If this space that must be regulated is not precisely the Internet, then what is it?
+
+ The point is, that what traffic, and what uses of traffic, arise in the relationship between access ISPs and their customers, is being subjected to special treatment, but similar technical services, e.g. SDWAN, are not - and the difference it seems is rooted in the core of a service which uses public IP addresses and associated systems such as DNS and global routing.
+
+ But, what if we were to separate these?  If an ISP uses public addresses space, but isolates the traffic, so that it might as well be private, is that then internet?  If the ISP used public DNS to enable that service, even though the advertised addresses were not routable outside the ISP, would that be Public Internet?  Or uses public DNS to advertise internal private addresses?
+
+ The answer to the question might seem difficult to find - for regulators, or pundits - but for ISPs, and according to the rules proposed (or discovered) - the answer is yes, this is Internet, and it does not break the ISP rules of conduct.  The vital point is that the end-customer is still working with a public IP, and, although the novel service is delivered outside the normal mode of operation, there is still the expectation that `normal' Internet service is served to the end-user, such that the end-users device need only be standard Internet host endpoint.
+
+ But wait!  in this last argument we declared that the service is Internet, partly on the basis that the end-user has a public IP address, by implication a \textit{routable} public IP address.  But in today's access networks, even this rule may not apply - CGNAT and IPv4-IPv6 interworking abound.
+ Mobile internet users rarely acquire public IP addresses.  So, asserting that the end-user is associated with a public IP address in the routable sense is already often not correct.  Similarly, services addressed via anycast or ISP internal private IP are already widespread.  ISP customer using Netflix may not meet any of the criteria of public DNS, public client IP or public server IP.  The sole remaining qualification for `Internet nature' is that the end-user, working as an unmodified device, is simultaneously able to access the `normal' Internet and other more specially served services.
+
+ This exposition has stretched the limits of working definitions of the Internet - the `blast radius' definition is shaky - because, the embedded service will probably still be viable even if the alignments with global uniqueness ad routing break.  But, we can take another perspective, which is that `The Internet' is just the set of services accessed when the user traffic is mapped externally to global public routable address space.   This perspective fits especially well with mobile network clients \footnote{In some mobile markets, Facebook access is an internally routed service, available even for customers that have been disconnected from the Internet! }, but increasingly also in fixed line access networks too, according to \fullcite{gigis2021}.
+
+ \subparagraph{Internet defined by common DNS and address space alone}
+
+ The base model for Internet topology resolves service names to single addresses, and the addresses are `real' in the sense of being located in a coherent consistent topology, and any forward linking uses the same mechanism, rooted again in DNS.
+
+ But this base model is already broken since the introduction of CDNs and caching.  In essence, the identity and location of services has been delocalised - and, in doing so, created a categorical distinction between clients and services, meanwhile, a complementary change has taken place in access networks, which renders them equally distinct from elements in the simple, symmetric, peer-to-peer model.
+
+ The fig leaf which maintains the semblance of consistency with `Internet norms' is that, in general, the client at least is able to `ping' the DNS host name of the base name of the service, from any access network in the global internet.  But, it doesn't guarantee that a working service, or the same service, or any service at all, will be available from any arbitrary client location.  For some cases, this `ping service' fig leaf is the only `service aspect` that relies on a global routing scheme, i.e., global BGP.
+
+ \subsection{Evolution in Action?}
+ In the previous section it was asserted  that \textit{Networks that break rules, in ways that might, or do, cause damage, are summarily disconnected}  and that \textit{Rule breaking which proves in practice to be harmless \ldots but in the long run the rules will become less strict \ldots especially if the `rule breaking' proves to be `profitable'.}
+
+ This, surely, is the very essence of evolution.  The more nuanced question is, maybe - what exactly are the organisms that are evolving?  Perhaps, the Internet itself, but if the analogy is to be taken strictly, it is the organisations - ISPs, content providers in particular, which are evolving.  One might analogise mobile operators as birds, and transit operators as dinosaurs, and observe that on isolated land masses life evolves differently.
+
+ But the essence is that to evolve there must be diversity, and some experiments will fail, even if some of their essence is perpetuated in the structure of their descendants.
+
+ In this analogy, we may see that the apparently immutable principles of the Internet may be immutable only a long as they are essential to success - but perhaps the real lesson to be learned is this, which is that to ask `what is the Internet' is as to ask `what is life'.  The fact that some novel creature is not obviously `alive' is a subjective judgement, but if that creature eventually replaces the incumbents, perhaps it will be that creature whose answer prevails.
+
+\subsubsection{Possible Steps in Future Evolution}
+The foregoing discussion of what constitutes `The Internet', and how acceptable change is defined and tested is leading to some specific proposals, and building a justification for them as valid and viable part of some `Future Internet', or at least an evolutionary branch of it, which may thrive, or not.
+
+In passing, it could be asserted that the rise of the IXP as an important element in Internet Architecture can be construed as an evolutionary trigger, catalyst, or incubation zone.  It is often in IXP contexts that some of the transformation from classical Internet to new forms has taken place.  It is a curiosity however to observe that in some senses the IXPs are `invisible' in a IP and BGP perspective - ASes simply continue to peer as they have done since before IXPs emerged, the difference being a matter of topological variation rather than explicit change involving for example non-public or non-routable address spaces, or some of the other innovations which have arisen in the CDN domain.
+
+However, IXPs could take on a more visible role, as the point of interconnection for further steps away from the transit network mediated Internet.  A small step in this direction may be already visible, in the case of the `MOAS' service offered by companies such as Cloudflare - this allows stub ASes to sidestep regular transit service and redirect traffic between their AS and selected other stub-networks.  However, for now the operation is supplementary - ASes using MOAS service are usually also still announcing their IP addresses in core Internet BGP.
+
+\paragraph{A general problem} facing proposals to `improve' Internet service is the issue of asymmetric routing and the need to cater for return paths in any `novel' extension which diverts traffic from core BGP default paths.  Only the simplest case of direct peering between an access network and a service access can be assured of routing end-to-end over managed paths.  Otherwise, both parties - access and content - would need to agree on any scheme which is intended to direct traffic over explicit paths not governed by core BGP.  There are existing instances of such traffic engineering, in the hyperscalers' domain, but for any smaller networks or services there are two extremes of control - either peer directly, or trust to some form of transit service.  The rise of the IXP is perhaps evidence of the demand for engineered paths.
+
+The reason that the reverse path  path asymmetry is so significant is that for almost any service it is the aggregate of reverse and forward path attributes that is important, for example, if the objective is security, or network performance metrics such as latency, loss or available bandwidth, then without control over the return path there is Lille point in optimising a forward path.
+
+\paragraph{Holding in mind for a moment} this issue of needing to control return paths, a naive proposal to `improve' a specific internet service for the clients of a particular access network, is to implement a diversion scheme within the access network, either at the DNS or at the IP routing level.  The selected traffic is thus directed into some engineered alternate channel, perhaps at an IXP.  A suitable method may be some form of network tunnel.
+The problem that arises in this context is that the service/content provider must also support some form of redirection which mirrors the access network engineered route, in order to complete the managed two-way path needed to protect whatever network metric is intended - but, engineering the reverse path is much harder than the forward path, because the client addresses are not so easily controlled - they are simply public IP addresses, for which the service provider cannot avoid having some default route.  Possibly even worse, where the access network is implementing CGNAT, there is an obligation on the service provider to observe adherence to transport protocol port usage conventions when directing traffic on the reverse path.
+
+So not only does each engineered forwarding path require careful design, e.g. by use of specific IP addresses for specific access networks, there is an equivalent but harder problem for engineering reverse traffic paths.  The net effect is that it is more difficult for a content provider to build an access network specific delivery than it is for the access network - and the underlying reason is that the access network public IP addresses are not specialised to a particular service in the way that the service IP's are.
+
+The problem can be encapsulated in the observation that a service provider need only assign a single IP address, per engineered path to an access network, while an access network would need to assign reserved addresses to cover its entire client base.
+
+A partial solution may be to tunnel return traffic from the SP to the access network - this avoids having to allocate and announce public IP address range, even when it is only intended for use over a specific path - but, it still does not solve the service provider core problem, which is that it must internally route traffic for the partner access network according to an agreed interconnection path to the access network.
+
+This may all sound perfectly normal and reasonable - and it is - but it is exactly the definition of peering, which is exactly what we are trying to avoid.  An engineered service such as described is simply normal peering agreement, potentially simplified at the transport level by use of tunnels, which might facilitate an interconnection over an L3 fabric rather than a conventional; IXP like L2 fabric.
+
+The apparently insuperable problem for the service provider is that the access provider clients are working with publicly routed IP addresses, and publicly routed IP addresses have to be managed in ways which are consistent with the global (BGP) IP routing scheme.  IT does not suffice to use unique and specially routed (public) IP addressees, when the reverse flow is to globally routed IP address space.
+
+In contrast, were both sets of addressees `special', then it would be almost trivial for a service provider, to route over an alternate reverse path.  BGP would still be applicable, but not core global reachability.
+
+\paragraph{Distinguishing Public IP addresses and Publicly Routable IP Addressees}
+The reverse path problem is arising because network clients are always identified by public and routable IP addresses: even though the addresses only need to be public in order to assure uniqueness in the service provider domain - they do not need to be globally routable.  But access network need to assign Publicly Routable IP Addressees to their clients for `normal' Internet services, including those reached via peering.  So, if a client already has a publicly routable address, and clients only work with a single address, then how could an access network assign additional addresses to clients, and do so in a way which does not force the client to manage multiple addresses?  The answer in principle is already in use - CGNAT.  But, for IPV4 at least, CGNAT is a complex, imperfect and expensive technology.  Worse, there is no available pool of public IPv4 addresses which could be used for specific alternate networks.
+
+However, for IPv6, there is much more scope.  There are large reserves of IPv6 address space.  Large enough that access ISPs may be able to build simple versions of CGNAT that would allow their clients to be mapped onto multiple alternate `Internets'.  In combination with tunnelling, which is made simple by use of public but unrouted IP address ranges, the strangle-hold dichotomy of either direct-peering, or transit, could be broken. New `transit' operators can more easily offer engineered interconnects at a distance between access and content.
+
+\paragraph{This then is the `Future Internet` offering of this Thesis} - that the `core' essence of `the Internet' is its consistency of presentation in the viewpoint of an access network client, which requires global IP addresses as a technical underpinning, but not a single contiguous, globally accessible routing domain.
+
+Services that demand more than `best-effort' network design can easily be constructed, at local, regional or national level.  The localisation required to assure the service quality naturally fits the reachability of the public IP addressed domain, which is disjoint from the core Internet BGP route table: reachability implies network capability.  Uniqueness of addresses means that direct peering is no longer essential to building out engineered networks adjoined to the public Internet.
+
+Ad hoc end client or network provider tunnels can be deployed to extend reachability over managed paths, where direct reachability via routing announcement is not accessible.
+
+ \subsection{Point solutions - Integrated PIR}
+ \label{sec:Integrated PIR}
+ In the experimentation under the heading `PIR', we showed that there is a simple viable method to selectively improve IDR routing with a light touch strategy, whilst making no software modification at all in the traffic carrying routers.  The disadvantage is that the strategy involves an inelegant, if harmless, abuse of BGP semantics, but also requires that every router is enabled for the BGP ADDPATH extension, and is potentially very demanding of the central controller, on account of the rather large number of potential routes which it must hold and process.  Although the proposed software solution already scales quite well, with a clear path to optimisation through parallelisation (the performance analysis of unpacked BGP Updates verifies that for a BGP controller at least, it is viable to distribute update processing over multiple threads without concern over `repacking' resulting updates, which in any case are expected to be very low in volume compared to input messages to the controller.)  So, building a very fast parallel BGP controller is evidently feasible.  However, with just a little assistance from ASBR routers we can do much better, and in a manner which is more elegant even than the PIR design.
+
+ \paragraph{We call this variant on PIR `Integrated PIR',} to reflect the linkage with PIR as described in this thesis.
+ Compliant ASBR routers have two new behaviours compared with standard BGP ASBR:
+ \begin{myitemize}
+     \item recognise and apply a new BGP role/relation of `Controller'
+     \item use BGP ADDPATH on routes sent and received with a BGP Controller
+ \end{myitemize}
+
+\paragraph{`Integrated PIR' - Controller Client Rules}
+\begin{enumerate}
+    \item The most important rule is the acceptance by a BGP controller client of any route advertised by a controller as preferred to any other route known to a BGP speaker.
+    
+    \item BGP controller clients implement selective advertisement of multiple routes in ADDPATH, according to the rule that all routes with calculated local preference equal or greater than that advertised by the controller should be announced to the Controller.
+    
+    \item Routes announced to the controller by BGP controller clients must carry the source Next-Hop address, rather than that of the ASBR.
+     
+    \item In every other regard, the BGP Controller behaves, and should be treated as, a BGP Route Reflector
+     
+\end{enumerate}
+
+
+ These principles enable a BGP controller to exert full override power as needed to select acceptable alternative routes when unwanted routes are announced to the controlled AS network.
+
+ \subparagraph{`Integrated PIR' - principles of operation}
+ Under normal conditions the BGP Controller functions just as a conventional BGP route reflector, announcing just a single best route, albeit encoded in BGP ADDPATH format.  In this mode, the controller/route-reflector gains a full view of available routes and makes the usual selection to announce back to connected ASBRs, driven purely by the ASBR assigned Local Preference.
+
+ However, the controller may at any time determine that the default best route is not safe, and instead choose some alternate as advertised by a different ASBR than the one announcing the default best route.  Note that the controller announces next-hops to ASBRs which are internal rather than external, i.e. the controller is responsible for making the `next-hop-self` substitution.  The exception to this next-hop-self substitution is when a route is announced back to the original route source, in which case the original external next hop is left unchanged.
+
+ When the controller chooses a non-default route, then at least one ASBR will be forced by rule one to choose a route which is not in the ASBR perspective `best'.  When an ASBR is forced to override its local selection rule by the controller, then, rule two comes into effect: ASBRs should advertise all routes which in the local view are better than the one enforced by the controller.  The reason for this is explained later.
+
+ Using this method, the controller is able to override the route selection logic for the entire AS.  In general, one might expect that the controller would always select the `second best route`, however, it is always possible that multiple routes may be rejected by the controller, and, in the extreme case, all routes for some prefix may be rejected, simply by not announcing any route to an ASBR.  This is a special case, and has the effect that no route is installed or announced by any ASBR for the prefix in question.
+
+\subparagraph{`Integrated PIR' - ADDPATH requirement justification}
+
+In cases where the `second-best-path' is announced to, and then by, a different ASBR than the one owning the rejected best route, the ADDPATH encoding is not strictly needed (although the external next hop still is.)  But, it may be that the best or only alternate substitute route is only reachable via the ASBR which holds the default best, and in this case, rule two is important, because it ensures that even in this corner case, a viable substitute route is accessible.  This also justifies the external next hop usage - because it explicitly instructs the ASBR with both route candidates which route to install and advertise.  It means that although the ASBR could correlate the forced alternate route with its own version, it need not do so.
+
+\subparagraph{`Integrated PIR' - restoration procedure when rejection is removed, or selected alternate is withdrawn}
+Normal BGP semantics apply even to the controller - if a selected preferred route is withdrawn or changed, as announced by an ASBR, then 
+the controller must respond accordingly.  It is up to the controller to continue evaluating all routes, in case the cause of rejection is removed, e.g. if a `better' default emerges, which removes the need to enforce substitution.
+
+\subparagraph{`Integrated PIR' - compatibility with standard Route Reflectors}
+
+The Integrated PIR' can be deployed concurrently with normal route reflection, in which case the rules are slightly adapted.  The Integrated PIR' can work with a conventional Route Reflector, simply by establishing the Route Reflectors as clients to the controller, as well as the ASBRs.  In this mode, the `Integrated PIR' controller need not announce default route selections at all to the ASBR clients., and simply rely on the RR to perform this role.  Then, only exceptions need to be announced by the controller, and only to the Route Reflector.
+
+\subparagraph{`Integrated PIR' - `kill routes' command}
+In circumstances where a route is rejected, but no alternate exists, the default rejection mechanism is simply an absence of announcing any route.  An alternate can be used, either with an RR or in standalone mode - a route is announced with an invalid or missing next-hop, in order to explicitly instruct that the default route is rejected, and no alternate is offered.
+
+
+\subparagraph{`Integrated PIR' - comparison and advantages over original Thesis PIR}
+
+Integrated PIR provides exactly the same degree of control as the original Thesis PIR. 
+
+Integrated PIR is simpler than the original Thesis PIR in that it does not demand that external routes to EBGP are propagated in the internal routing tables, and that it eliminates the need for specific and correct configuration of controller-client peering sessions.
+
+It is especially beneficial in comparison because it is compatible with Route Reflection, and can even be implemented directly as an enhanced version of Route Reflection.
+
+It also reduces load on both controller and client ASBRs by reducing the number of ADDPATH secondary routes which must be propagated and processed.
+
+However, the most important advantage of `Integrated PIR' is that it enables network operators to have an explicit network management overview of the operation of any route overrides in the management interface of the ASBRs.  It is this type of integration which is important for mainstream acceptance of innovations such as this.  Without integration at the device level, network operators' work can become more complex, as they seek to understand and troubleshoot specific behaviours in their networks.
+
+An important, even vital, attribute of both `Integrated PIR' and `Thesis PIR' is that it can be deployed selectively on a device-by-device level.  This is because the intrusive effect of pushing an override is limited to the target router holding the rejected route.  Once this target router removes its announcement of a bad route, the remaining mitigating actions are just standard IBGP behaviour.
+
+Note that it is possible to gain most of the route visibility required to implement either form of PIR simply by configuring the controller in a passive Route Reflector relation to most of the ASBRs in an AS network -   ADDPATH is only required in order to address specific corner cases.
+
+The final important caveat is this: while PIR in either form provides a means to better control transit network Routing Policy, it is not a complete solution - it must be coupled with one or more threat detection systems, such as Artemis\cite{Sermpezis2018}, or even just a locally written application which implements reasonable heuristics which are not available at the device level.
+
+\textbf{This is of course an important topic for Further Research!}
+
+
+\section{Summary and Conclusions}
+
+The core technical and implementation work of this Thesis focuses on the classical Internet architecture, in which the global integrity and essence of the public Internet is still dependent on the routed Internet core and the global BGP route table. 
+
+We saw how challenging it is to incrementally improve the technical metrics without disturbing the rather well-designed distributed route management system that forms the basis of all Internet service networks, yet nonetheless finding and validating some concrete methods for adding `intelligence' to existing networks, and also a further proposal for making such an intelligent overlay more formal and consistent than the ad hoc scheme which was developed and tested.
+
+We also found that there is no technical barrier to implementing highly scalable BGP processing systems in modern programming styles, with all of the attendant benefits, and showed how to effectively evaluate performance metrics for software and hardware BGP systems.
+
+\bigskip
+
+A complementary strand in the Thesis analysis and argument asks whether much further improvement is wanted or needed in protecting this classical model - perhaps the commercial, social and regulatory context is such that rather than `fix' the undoubted issues with classical Internet, when asked to meet harder requirements for performance or reliability and security, instead, ISPs and their clients may be content to deploy hybrid networks which do not meet some stricter definitions of `the Public Internet`, yet from the perspective of all interested parties are pragmatically indistinct from the `internet services' they already enjoy - delivered by the same providers, and access using the same hardware and software systems as support 'conventional ` internet content.
+
+It may be that 'public` IP addresses, and the global DNS system, will continue to have a vital role in integrating these diverse new services, even though an increasing fraction of theme are not connected over the `'core Internet' routing domain which was at the heart of the public Internet in its first decades of existence.
+
+The final word - at the head of the thesis, the proposition was an equivalence between `the Internet' on which so much of modern life depends, and the technical underpinnings, and especially BGP and IDR.
+But, after much time, thought and research, it is no longer so obvious, to this author, that we should equate `the Internet' solely with this classical architecture. Geoff Huston wrote of the 'Death of Transit', which can be seen as a proxy for the death of the classical core BGP based system.  But perhaps, core routed services will never die out, much as railways, canals and the public telephone system may never die out - but, increasingly, services will be delivered still by network service providers, and perhaps still using protocols  (IP, BGP), and resources (public DNS, public AP address space), but over more diverse and heterogeneous structures than are prevalent today.
+
+Schemes such as secure (S-)BGP, and the hyper-secure connectivity of SCION may all have a place in this diverse structure - neither need `win' (or `lose') in competition with `standard Internet'.
+
+Perhaps the remaining interesting question is how these alternate services can be integrated through use of common DNS and public address space, while operating in parallel with the classical 'public Internet core'.
+
+\paragraph{In short,} IP based clients, and access networks supporting them, to connect to content and services, may prove more persistent and ubiquitous than the care AS / BGP system.
+
+Arguably, the change will be driven by the need to have more deterministic behaviour for services which cannot make do with just `best-effort', either for reasons of resilience, or for Quality Of Experience.
+
+And, it may be, that this will be the trigger not for the extinction of transit network providers, but for their evolution towards more deterministic and engineered networks, designed to address more quantifiable and predictable traffic flows.  Ultimately, perhaps, it does not make sense that access providers and content and service providers should engineer their interconnects in isolation: but since IXPs are providing only the location for interconnection, when service providers must coordinate other resources too: compute and storage, at edge and cloud, and transmission - short, medium and long-distance.
+In a market driven Ecosystem, the question must surely be whether the providers of these distinct resource types will converge.
+
+But nothing suggest that where IP is the currency, that BGP will not be the medium for interconnection management, even if the route tables at hand are not so often `full backbone tables'.
+
+
+Possibly, the main competitive technical solution for service delivery will be increasing use of embedded content delivery in access provider infrastructure.  But, this alone cannot resolve the need for closer content and access, simply because of the $N^2$ problem.
+
+\subsection{Final Words}
+
+We showed how  transit networks might be modernised with relatively low effort, risk and impact, to support smarter routing strategies. Perhaps, this extra intelligence can rescue transit networks as the core for critical services, even if not for bandwidth intensive or latency critical ones.
+
+But perhaps instead, the deeper resilience needed, as society becomes ever more dependent on networked services, can only be realised by more rigorous service management, based on a network core managed more on a 'need-to-connect' only,  blocked-by-default basis - `integrated-SCION'\cite{zhang2011}, if you like\ldots
+
+But the beauty of the Internet, if only it is allowed to diversify as imagined here, is that the experiment can be conducted for real, and the winning architecture allowed to emerge, rather than be decided by central decree.
+
+Hopefully, the practical contributions of this Thesis can form the basis for further experimental work towards these goals, and even inform the development of future, production-ready, BGP based network control agents.

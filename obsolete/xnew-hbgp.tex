@@ -1,0 +1,510 @@
+\section{hbgp Source Code Overview}
+
+In this section we describe the implementation in Haskell of a BGP router.
+
+The intent of the section is to give an insight into the structure of the software, and in doing so illuminate the way in which FP (Functional Programming) and  Haskell specific language properties support or hinder in the implementation.
+
+\bigskip
+
+We present at source code level three important elements of the hbgp application.  In the first code analysis section (\ref{RPS}), the approach used for encoding and decoding BGP message values is shown, with some examples which also show the way in which these application specific values are naturally represented in Haskell.
+
+The next code analysis section (\ref{rib section}) focuses on the representation of the core structure in any BGP speaker - route table, or RIB, and also shows how the 'BestPath' evaluation process is implemented and optimised.
+
+The last code analysis section (\ref{adjribout}) trace the concurrent process and thread structures used to implement a BGP speaker which effectively interoperates with large numbers of active concurrent BGP speaker peers, and shows how race-protection and the approach  for 'mutability in immutable data structures' are implemented.
+
+\subsection{software repository structure}
+
+The repository for the Haskell router described here is: \url{https://github.com/hdb3/hBGP.git}
+
+The top-level directory structure has the following directories, which also represent the structure of the system as a whole:
+
+\begin{itemize}
+    \item \textbf{Router} - the core router `main' function is located here, and all other elements are included by reference from it
+    \item \textbf{BGPlib} - the main low-level BGP codebase - includes parsers and deparsers for BGP protocol entities.  Used by other applications in addition to Router, for example the MRT and BMP libraries and applications
+    \item \textbf{BGPRib} - core high-level BGP Router functions, specifically the definition of RIBs and their operations.  Together with BGPlib, this library forms the core of the Router
+    \item \textbf{Session} - simple protocol agnostic implementation of a Linux network socket application framework
+    \item \textbf{ZServ} - library which implements access to the IP routing native Linux forwarding plane, through the medium of the Quagga/FRR `zserv' daemon and API.  Only required for instance of Router which should interact with the local routing system - i.e. `real' BGP routers.  Not needed for BGP Route Reflectors, Servers or Controllers.
+    \item \textbf{BMPlib} - BMP (BGP Management Protocol) - support for both client (controller) and server (router roles).  An alternate mechanism for providing access to BGP Router RIB state, ( the other alternate is BGP ADDPATH).  The BGP controller application in hbgp does not currently use BMP, so this library is not required to build the Router
+    \item \textbf{MRT} - support for Multi-Threaded Routing Toolkit (MRT) - this is only the access (read) library, MRT streaming support is not currently supported in hbgp.  The application of MRT has been to conduct research on MRT data, as reported in the section <????>
+\end{itemize}
+
+
+
+\subsection{representation, parsing and serialisation} \label{RPS}
+A key part of any network protocol implementation is the support for reading and writing 'wire-messages' at an application semantic level, and Haskell provides mature and highly optimised libraries to support both reading and writing protocol objects (parsing and deparsing, or, de-serialisation and serialisation).
+The chosen external encoding library is AttoParsec\cite{BOS1}\cite{BOS2}, the encoder is ByteString.Builder\cite{builder1}\cite{builder2}.  Earlier versions used the package Data.Binary\cite{binary1}\cite{binary2} as both encoder and decoder.  The switch to AttoParsec and ByteString.Builder was driven by performance concerns.
+
+The library \textbf{BGPlib} is largely devoted to support for BGP specific types, parsers and deparsers.
+
+
+Since parsers and deparsers all require to have types as their subjects, we begin by looking at the application specific types developed for the project.  In the library module BGPlib, the types are defined for every level of entity and value contained in BGP protocol messages, from the highest level object, BGPMessage - seen here - 
+
+\begin{lstlisting}[language=haskell, title=BGPlib/BGPMessage.hs:30]
+data BGPMessage
+  = BGPOpen {myAutonomousSystem :: Word16, holdTime :: Word16, bgpID :: IPv4, caps :: [Capability]}
+  | BGPKeepalive
+  | BGPNotify {code :: EnumNotificationCode, subCode :: NotificationSubcode, errorData :: L.ByteString}
+  | BGPUpdate {withdrawn :: [Prefix], attributes :: [PathAttribute], nlri :: [Prefix]}
+  | BGPTimeout
+  | BGPError String
+  | BGPEndOfStream
+  deriving (Eq)
+\end{lstlisting}
+
+ - to the lowest, for example -  
+\begin{lstlisting}[language=haskell, title=BGPlib/ASPath.hs:19]
+type ASNumber = Word32
+\end{lstlisting}
+
+\subparagraph{The AS Path attribute}
+ is an example of one of the more complex BGP related types; its complete definition and implementation in terms of encoder and decoder, including  support for the awkward variant form for a sub-element, the 'AS Set', follows.
+
+
+It's arguably easier to understand the encoding of AS path from this code than from the RFC!
+\lstset{frame = tb, numbers = left }
+\begin{lstlisting}[language=haskell, title=BGPlib/ASPath.hs (only non-CODEC helper functions removed)]
+module BGPlib.ASPath where
+
+import ByteString.StrictBuilder
+import qualified Data.Attoparsec.ByteString as A
+
+type ASNumber = Word32
+type ASPath = [ASSegment]
+data ASSegment = ASSet [ASNumber] | ASSequence [ASNumber] deriving (Show, Eq, Generic)
+
+parseASPath :: Word16 -> A.Parser ASPath
+parseASPath 0 = return []
+parseASPath n
+  | n < 2 = error $ "parseASPath: invalid length: " ++ show n
+  | otherwise = do
+      t <- A.anyWord8
+      l <- A.anyWord8
+      let calculatedByteCount = fromIntegral $ 2 + 4 * l
+      when (n < calculatedByteCount) (error $ "parseASPath: invalid length n=" ++ show n ++ " l=" ++ show l ++ " t=" ++ show t)
+      segment <-
+        if
+          | t == enumASSequence -> ASSequence <$> A.count (fromIntegral l) A.anyWord32be
+          | t == enumASSet -> ASSet <$> A.count (fromIntegral l) A.anyWord32be
+          | otherwise -> error $ "parseASPath: invalid type = " ++ show t
+      segments <- parseASPath (n - calculatedByteCount)
+      return $ segment : segments
+
+buildASPath :: ASPath -> Builder
+buildASPath = foldMap segBuilder
+  where
+    segBuilder (ASSequence asnx) = word8 2 <> word8 (fromIntegral $ length asnx) <> foldMap word32BE asnx
+    segBuilder (ASSet asnx) = word8 1 <> word8 (fromIntegral $ length asnx) <> foldMap word32BE asnx
+\end{lstlisting}
+
+The brevity of the code is such that it seems hard to believe that just 30 lines includes both the type definition and also everything required to translate to and from wire-format to a natural and highly abstract data type.
+
+\bigskip
+
+Note: the slightly unusual signature of the parser:
+
+\lstinline{parseASPath :: Word16 -> A.Parser ASPath}, in the first parameter, \lstinline{Word16},
+
+is because path attributes have defined lengths, and to parse correctly, in this case at least, that length must be known to the sub-parser.  So this \lstinline{Word16} is simply the byte length of the attribute to be parsed.
+
+\subsection{RIB structures and rfc4271}\label{rib section}
+
+RFC4271 has the following definitions of RIB structures:
+\lstset{frame = tb, numbers = none }
+
+\begin{lstlisting}
+3.2.
+Routing Information Base
+The Routing Information Base (RIB) within a BGP speaker consists of three distinct parts:
+
+a) Adj-RIBs-In: The Adj-RIBs-In stores routing information learned from inbound UPDATE messages that were received from other BGP speakers. Their contents represent routes that are available as input to the Decision Process.
+
+b) Loc-RIB: The Loc-RIB contains the local routing information the BGP speaker selected by applying its local policies to the routing information contained in its Adj-RIBs-In. These are the routes that will be used by the local BGP speaker. The next hop for each of these routes MUST be resolvable via the local BGP speaker's Routing Table.
+
+c) Adj-RIBs-Out: The Adj-RIBs-Out stores information the local BGP speaker selected for advertisement to its peers. The routing information stored in the Adj-RIBs-Out will be carried in the local BGP speaker's UPDATE messages and advertised to its peers.
+
+In summary, the Adj-RIBs-In contains unprocessed routing information that has been advertised to the local BGP speaker by its peers; the Loc-RIB contains the routes that have been selected by the local BGP speakers Decision Process; and the Adj-RIBs-Out organises the routes for advertisement to specific peers (by means of the local speaker's UPDATE messages).
+
+Although the conceptual model distinguishes between Adj-RIBs-In, Loc-RIB, and Adj-RIBs-Out, this neither implies nor requires that an implementation must maintain three separate copies of the routing information.
+
+The choice of implementation (for example, 3 copies of the information vs 1 copy with pointers) is not constrained by the protocol.
+\end{lstlisting}
+
+
+Arguably the significance of separate or combined stores is hardly more than a low level optimisation issue - in any case, the present design \textit{does} merge \textit{Adj-RIBs-In} and \textit{Loc-RIB} into a single container, indexed by prefix, whilst  \textit{Adj-RIBs-Out} remain separate.
+
+In this design of a combined \textit{Adj-RIBs-In} and \textit{Loc-RIB}, the full implementation consists of just the following 84 lines of source code.  It is functionally as complete as any of the existing other well-known open-source BGP implementations. The first of two source file follows (Note, 'PTE', in PTE.hs, stands for \textbf{P}refix \textbf{T}able \textbf{E}ntry) :
+
+\begin{lstlisting}[title=BGPRib/PTE.hs, numbers = left]
+module BGPRib.PTE where
+
+import BGPRib.BGPData
+import Data.IntMap.Strict as IntMap
+import Data.Maybe (fromMaybe)
+
+class PrefixTableEntry pte where
+  pteNull :: pte a -> Bool
+  pteEmpty :: pte a
+  pteUpdate :: (Route r) => r -> pte r -> pte r
+  pteBest :: (Route r) => pte r -> r
+
+instance PrefixTableEntry [] where
+  pteNull = Prelude.null
+
+  pteEmpty = []
+
+  pteBest [] = BGPRib.PTE.null
+  pteBest (a : _) = a
+
+  pteUpdate r0 rx = if isWithdraw r0 then f'' rx else f rx
+    where
+      f [] = [r0]
+      f (r : rx)
+        | eq r0 r = f' rx -- remove first sibling
+        | gt r0 r = r0 : f'' (r : rx)
+        | otherwise = r : f rx
+
+      -- simple ordered insertion without duplicate removal
+      f' [] = [r0]
+      f' (r : rx) = if gt r0 r then r0 : r : rx else r : f' rx
+
+      -- one-shot duplicate removal - no need to ever insert
+      f'' [] = []
+      f'' (r : rx) = if eq r0 r then rx else r : f'' rx
+
+
+class (Show a) => Route a where
+  eq :: a -> a -> Bool
+  gt :: a -> a -> Bool
+  isWithdraw :: a -> Bool
+  isNull :: a -> Bool
+  null :: a
+
+instance Route RouteData where
+  eq r1 r2 = peerData r1 == peerData r2
+  gt r1 r2 = r1 > r2
+  isWithdraw Withdraw {} = True
+  isWithdraw _ = False
+  isNull NullRoute = True
+  isNull _ = False
+  null = NullRoute
+\end{lstlisting}
+
+Here, in lines 7-11, the LocRib and AdjRibIn functions are defined by an API, expressed as \textbf{\textit{class PrefixTableEntry}}, which defines a, rather simple, set of externally accessible operations needed for any implementation of LocRib and AdjRibIn.
+
+Of the four needed class methods:
+\begin{verbatim}    
+  pteNull :: pte a -> Bool
+  pteEmpty :: pte a
+  pteUpdate :: (Route r) => r -> pte r -> pte r
+  pteBest :: (Route r) => pte r -> r
+\end{verbatim}
+%TODO switch all of the \textbf{\textit{...}} code snippted to use \lstinline|....|
+the first two,  \textbf{\textit{pteNull}} and  \textbf{\textit{pteNull}} allow an empty PTE to be created, and to check whether a PTE is empty.
+
+The second pair of methods, \textbf{\textit{pteUpdate}} and \textbf{\textit{pteBest}}, are the main topic: \textbf{\textit{pteUpdate}} is the insert (and delete) \textbf{\textit{Route}} in \textbf{\textit{PrefixTableEntry}} action, while \textbf{\textit{pteBest}} returns the current best path - also, a \textbf{\textit{Route}}.
+Note that the API is defined in terms of the abstract type (class) \textbf{\textit{Route}};  \textbf{\textit{Route}} is also defined in this file, at lines 38-43.  So \textbf{\textit{PrefixTableEntry}} as a class knows only a very little about \textbf{\textit{Route}}s, for example,  just enough to function as expected when a route from a peer is inserted in a PTE where already there is a route from the same peer.
+
+\smallskip
+
+For non-Haskell-users, an important point about the signature of the method
+
+\lstinline|pteUpdate :: (Route r) => r -> pte r -> pte r| is the last term, \lstinline|pte r|, which gives the interpretation of this function signature as \textit{pteUpdate takes as input a Route and a PrefixTableEntry, and returns a PrefixTableEntry}.
+
+In other words, the input PrefixTableEntry is treated as immutable (this is Haskell after all), all the function does is return is \textbf{\textit{another, different,}} PrefixTableEntry - the old one is not changed.  It's a standard FP/Haskell paradigm, and when we come to consider the consuming code for the same function, it will be seen how 'mutability' is enabled (spoiler alert: the old value is discarded, the new one takes its place in an unholy mutable state value, but only after the same process is repeated at the level of the entire Rib container, which may hold a very large number indeed of these PrefixTableEntry values.)  So, simply inserting a route and a single prefix is done by 'copying and modifying' the entire routing state.
+\bigskip
+
+\paragraph{Now we consider the attributes required of a Route} in order to satisfy the requirement for eligibility as the 'value' element in a  PTE
+
+
+\subparagraph{One simple method on Route} is
+\textit{\textbf{isWithdraw}}, which allows the same PTE method to be used for Update and Withdraw - a Route should have a predicate 'isWithdraw' - if isWithdraw is true for an offered route then a PTE should not insert the given route, but it should search and destroy any another route which matches it, source-peer-wise - which is just as Withdraw should do. 
+  
+\subparagraph{The two other main Route methods}
+ are \textit{\textbf{eq}} and \textit{\textbf{gt}}.  
+
+
+\textit{\textbf{eq}} is somewhat misnamed - its actual usage is to indicate if two Routes have the same parent/source/peer.
+It's needed frequently, whenever a new route displaces an old route from the same source.
+
+\textit{\textbf{gt}} is the most important method on Route - \textit{\textbf{gt}} is the BestPath method - it's existence signifies that for any two routes there is a method to find which is to be preferred in the BestPath evaluation beauty contest.  By use of these two methods, \textit{\textbf{eq}} and \textit{\textbf{gt}}, alone, it should be always possible to build a LocRib/AdjRibIn implementation compliant with RFC4271, whilst knowing nothing more at all  about the internal structure of 'Route'.
+
+Equally, the key is generic - any type which is Hashable will do.  It allows this Rib to be used for either IPv4 or IPv6 without change.\footnote{Note that the implementation of ADDPATH, which extends the RC4271 prefix with a 32-bit Path ID field, is accomplished in hbgp by treating the Path ID as a logical Path Attribute. }
+
+The final noteworthy aspect of the Route class is the provided instance, at lines 45-52.
+
+This instance definition establishes that the concrete type 'RouteData' is an instance of Route, and goes on to provide the method instances from RouteData required to satisfy the instance.
+
+Note that RouteData has its own \textit{\textbf{eq}} method, therefore to find the concrete implementation of BGP tiebreak used in hbgp, we should look to  the definition of the type RouteData.
+
+\paragraph{List instance of PrefixTableEntry}
+Having explained semantics of the Route class, we should look at how they are used to implement an instance of PTE.  This is the core role of this source file, seen in lines 13-35, in the \textit{\textbf{instance PrefixTableEntry [] where}} clause.  This clause implements an instance of a \lstinline|PrefixTableEntry| based on the standard Haskell list type ( note \textbf{[]} is a synonym for List in Haskell).
+
+The essential property of this instance is that it is always ordered based on relative strength of the Route members, and therefore the head of the list is always the current BestPath.  The ordering is preserved by the logic of the  \textit{\textbf{pteUpdate}} method, which is the only method which is used to mutate a \lstinline|PrefixTableEntry|.
+
+\subparagraph{List instance pteUpdate method}
+A high level description of the algorithm of \lstinline|pteUpdate| is a list traversal with early termination, holding the offered new element only until an insertion point is found, where the correct insertion point is based on comparison via the \textbf{\textit{gt}} method, with the routes in the list.  As the traversal proceeds it also checks for an existing member from the same peer, and removes one if found.  The algorithm exits as soon as both 'insert new' and 'remove old' actions are done.  Only if no previous entry for the same peer is found, or if the to-be-inserted item is the least preferred in the entire list, is \textit{every} element in the list visited.  When the new entry is 'withdraw' then the algorithm simply skips the 'insert' phase and goes directly to 'remove prior' mode.
+
+It's important to note that, because the algorithm always inserts every new entry based on the route ordering, the list remains sorted, and the \textit{\textbf{pteBest}} method is simply 'List head'.  More precisely, it is a 'safe' version of 'head', because there is a special 'null' value required by the Route class, for just this reason.
+
+\footnote{This may need to be in a later section.....
+
+Point 1 - the O(n) complexity is obvious.  Smarter options are available.  The main difficulty is removal - hard to do without something like a map - possibly the algorithm could switch at high levels of scale.  Alternatively, a hierarchy of RIBs could help, which could also be a general strategy for concurrency scaling.  As more peers come, less often is global best path updated, so the top level of hierarchy need not be a bottleneck.
+
+Point 2 - it seemed a happy coincidence that the kakapo scale test which shows that hbgp outperforms bird at 50 peers uses a traffic profile in which every route generated has higher preference than and current ones, therefore this algorithm appear unfairly 'good' in this test - until it is realised that for the same reason of synthetic data, \textit{the route that must be removed} is at the tail of the list.
+
+So the kakapo stress test is showing hbgp at its worst, not its best.
+It's not a result of lazy test data, its because the test strategy has to find a way to have every transmitted update matched 1:1 with a re-announced one - it is how it keeps a fixed 'window' of unprocessed updates.
+}
+
+\bigskip
+
+Note that the 'elegance' of using abstract classes to define the prefix table entry increases  the code size and complexity \footnote{But only the source code size increases - the Haskell compiler GHC is \textit{very good} at such simple optimisations as specialisation}, but in doing so it provides the assurance that if/when the decision to refactor or replace the List based version is made, that it will be trivial to make any change needed. 
+\bigskip
+
+The second part of the  combined \textit{Adj-RIBs-In} and \textit{Loc-RIB} is simpler, at least at the source code level.  It is the implementation of the outer container, which is the actual whole combined 'RIB' itself.   The implementation is in the 33 code lines of BGPRib/PrefixTable.hs, shown below (actual file is slightly longer (44 sloc) and has other functions, but none other used in the internal implementation if the table itself.
+
+\begin{lstlisting}[numbers = left, title=BGPRib/PrefixTable.hs (some functions removed for clarity)]
+module BGPRib.PrefixTable where
+
+import BGPRib.BGPData
+import qualified BGPRib.PTE as PTE
+import BGPlib.BGPlib (Prefix, fromPrefix, toPrefix)
+import Data.IntMap.Strict (IntMap, Key)
+import qualified Data.IntMap.Strict as IntMap
+
+type PrefixTableType = [RouteData]
+type PrefixTable = IntMap PrefixTableType
+
+newPrefixTable :: PrefixTable
+newPrefixTable = IntMap.empty
+
+update :: PrefixTable -> [Prefix] -> RouteData -> (PrefixTable, [(Prefix, RouteData)])
+update pt pfxs route = Data.List.foldl' f (pt, []) pfxs
+  where
+    f (pt', acc) pfx = (pt'', acc')
+      where
+        acc' = if newBest == oldBest then acc else (pfx, newBest) : acc
+        (oldBest, newBest, pt'') = ptUpdate pfx route pt'
+
+ptUpdate ::  Prefix -> RouteData -> PrefixTable -> (RouteData, RouteData, PrefixTable)
+ptUpdate k r pt = (PTE.pteBest oldVal, PTE.pteBest newVal, IntMap.insert k' newVal pt)
+  where
+    k' = fromPrefix k
+    oldVal = fromMaybe PTE.pteEmpty (IntMap.lookup k' pt)
+    newVal = PTE.pteUpdate r oldVal
+
+withdraw :: PrefixTable -> [Prefix] -> PeerData -> (PrefixTable, [(Prefix, RouteData)])
+withdraw pt pfxs pd = update pt pfxs (Withdraw pd)
+
+withdrawPeer :: PrefixTable -> PeerData -> (PrefixTable, [(Prefix, RouteData)])
+withdrawPeer pt = withdraw pt (map toPrefix $ ptKeys pt)
+
+queryPrefixTable :: PrefixTable -> Prefix -> RouteData
+queryPrefixTable table pfx = PTE.pteBest $ ptQuery (fromPrefix pfx) table
+
+ptQuery :: Key -> PrefixTable -> PrefixTableType
+ptQuery k pt = fromMaybe PTE.pteEmpty (IntMap.lookup k pt)
+\end{lstlisting}
+
+The table itself has four methods: create, update, delete, query.
+
+But before examining the implementation, an initial point - this RIB, is defined at lines 9-10  as a simple, standard, Haskell map container -  \lstinline{Data.IntMap.Strict.IntMap} - the key is the Int, which proxies for a prefix, but what is the value?  We \textit{might} expect it to be the PrefixTableEntry, already analysed.
+
+But actually the map is simply defined as a container over \verb|[RouteData]|! 
+(i.e. \verb|List RouteData|).
+But, because already we declared a List instance of PrefixTableEntry in BGPlib/PTE.hs, then we are fine to just use the PrefixTableEntry methods to manage the state elements in the map, the list type is enough - as long as the List type parameter is an instance of class Route - but, we also declared that too, in BGPlib/PTE.hs.  A significant point is that the container has no insight into the fact that its stored values are being used a Prefix Table Entries.
+
+The implementation logic of \verb|update :: PrefixTable -> [Prefix] -> RouteData -> (PrefixTable, [(Prefix, RouteData)])| (lines 16-28) may be  a little dense for non-Haskell literates - the essence is that this main outer function is a bulk update function which applies the same Route update to as many prefixes as needed (the first parameter is \verb|[Prefix]|, not \verb|Prefix|.
+
+The function uses a classic fold (Data.List.foldl' is simply the struct version of fold), to accumulate the effect of the lower level function  \textit{\textbf{ptUpdate}}, and while doing so also the continuously update the RIB table - i.e. the main IntMap container.
+
+So \textit{\textbf{ptUpdate}} is 'called' once per prefix.   \textit{\textbf{ptUpdate}} is the real heart of the route change system for this BGP speaker.  It applies the updates, but crucially, it checks the before-and-after BestPath, and this drives the rest of the route announcement process.  When Before==After, then no change is needed, but otherwise, BestPath changed, and we need to know both what from and what to, in order to proceed.
+
+\bigskip
+
+The analysis so far is focused on the role and implementation of the Rib; now we turn to the application of the Rib update function in a context which allows the Rib to be mutated as Update messages are processed.  Multiple concurrent threads make calls to the Rib update function; it is  the wrapping of the Rib state in a Haskell MVar which enables both mutation and an effective lock to protect against concurrent access.  In fact, in concurrent Haskell, there is no way to express a \textit{non-safe} instance of this function. 
+
+Here is the execution path for this process:
+%  firstnumber=263, lastline=283,
+\begin{lstlisting} [numbers = left, firstnumber=263, numberblanklines=false, title=Router/BgpFSM.hs]
+
+established :: F
+established st@St {..} = do
+  msg <- bgpRcv handle (getNegotiatedHoldTime osm)
+  case msg of
+    BGPKeepalive -> do
+      void $ Rib.ribPush (fromJust ribHandle) NullUpdate
+      return (Established, st)
+    update@BGPUpdate {} -> do
+      trace "established: BGPUpdate"
+      Rib.ribPush (fromJust ribHandle) (parseUpdate update)
+      return (Established, st)
+    BGPNotify {} -> idle st "established - rcv notify"
+    BGPEndOfStream -> idle st "established: BGPEndOfStream"
+    BGPTimeout -> do
+      bgpSnd handle $ BGPNotify NotificationHoldTimerExpired 0 L.empty
+      idle st "established - HoldTimerExpired error"
+    _ -> do
+      bgpSnd handle $ BGPNotify NotificationFiniteStateMachineError 0 L.empty
+      idle st $ "established - FSM error (" ++ show msg ++ ")"
+          
+\end{lstlisting}
+This fragment from Router/BgpFSM.hs shows the main loop which executes as long as the peer thread is connected and sending messages.  The happy-path here is in lines 335-338, which executes once for every regular Update message processed.  Note that the parsing of the body of a BGP Update is done later than the parsing of the BGP message envelope.  Note also, in passing, that in this codebase there is no allowance for signalling parse errors from the Update back into the FSM.  It's an area which could be improved, however, the called function may catch parse errors and take action it self, since it is itself an IO function.  But, feeding parse errors into the FSM is still probably a better strategy.
+
+The parsed update is consumed by a call to the Rib: \lstinline{Rib.ribPush (fromJust ribHandle) (parseUpdate update)}, the implementation of which is shown below, at line 126.  Note the signature of this function is IO() - in other words, external state is affected, but no value is returned.  This shows that the FSM has no part in responding to specifics of Update content, and is thus entirely generic for any BGP application that is required to behave as a compliant BGP speaker.
+
+Here is the entry point into the main Rib processing system.  Although an IO function, it still executes in the calling process context of the FSM, and is a 'blocking' function.
+
+\begin{lstlisting} [numbers = left, firstnumber=122, numberblanklines=false, title=BGPRib/Rib.hs]
+
+evalLocalPref :: PeerData -> [PathAttribute] -> [Prefix] -> IO Word32
+evalLocalPref peerData pathAttributes pfxs = return (peerLocalPref peerData)
+
+ribPush :: Rib -> PeerData -> ParsedUpdate -> IO ()
+ribPush rib routeData update = modifyMVar_ rib (ribPush' routeData update)
+  where
+    ribPush' :: PeerData -> ParsedUpdate -> Rib' -> IO Rib'
+    ribPush' peerData ParsedUpdate {..} rib = ribUpdateMany peerData puPathAttributes hash nlri rib >>= ribWithdrawMany peerData withdrawn
+
+    ribUpdateMany :: PeerData -> [PathAttribute] -> Int -> [Prefix] -> Rib' -> IO Rib'
+    ribUpdateMany peerData pathAttributes routeId pfxs (Rib' prefixTable adjRibOutTables)
+      | null pfxs = return (Rib' prefixTable adjRibOutTables)
+      | otherwise = do
+          localPref <- evalLocalPref peerData pathAttributes pfxs
+          let routeData = makeRouteData peerData pathAttributes routeId localPref
+              routeData' = if importFilter routeData then Withdraw peerData else routeData
+              (!prefixTable', !updates) = BGPRib.PrefixTable.update prefixTable pfxs routeData'
+          updateRibOutWithPeerData peerData updates adjRibOutTables
+          return $ Rib' prefixTable' adjRibOutTables
+\end{lstlisting}
+
+In lines 123-124 the hook for the dynamic route evaluator of the hbgp variant 'lambdaBGP' can be seen, which is an IO enabled localPreference function.  In hbgp, and in its controller enabled variants, it is not the route evaluator which is customised (although it easily could be).  hbgp-as-controller operates after the BestPath algorithm runs, not before it.  Therefore this instance of localPreference function is a no-op, simply returning the localPreference calculated in the normal way, i.e. based on local configuration.
+
+\bigskip
+
+In the entrypoint function for the RIB (from the BGP FSM), at line 127, we see the MVar in action, enabling mutation-in-place and concurrency safe race-protection: 
+
+\begin{lstlisting}[frame=none]
+ribPush rib routeData update = modifyMVar_ rib (ribPush' routeData update)
+\end{lstlisting}
+
+where the function \lstinline{modifyMVar_ :: MVar a -> (a -> IO a) -> IO ()}, from the Haskell standard concurrent library, is documented as follows:
+
+\textit{modifyMVar\_: An exception-safe wrapper for modifying the contents of an MVar.
+Like withMVar, modifyMVar will replace the original contents of the MVar if an exception is raised during the operation.
+}
+
+So, ribPush simply opens up the MVar in order to apply its twin function ribPush' (ribPush \textit{prime}) to the real Rib hidden inside an MVar.
+
+Here, from the same file, is the code that defines the type structure of both Rib, and also the substance of Rib'
+\begin{lstlisting} [numbers = left, firstnumber=18, numberblanklines=false, title=BGPRib/Rib.hs]
+
+type Rib = MVar Rib'
+
+type AdjRIB = Data.Map.Map PeerData AdjRIBTable
+
+data Rib' = Rib'
+  { prefixTable :: PrefixTable,
+    adjRib :: AdjRIB
+  }
+
+\end{lstlisting}
+
+Of this composite data structure, Rib', the element PrefixTable was already closely described in the previous section - and here we see the entirety of the hbgp RIB - just PrefixTable, together with 'AdjRIB'.  Note - since AdjRibIn has no independent existence in hbgp, 'AdjRIB' is unambiguously 'AdjRIBOut'.
+
+Also exposed here, in line 21,  is that AdjRIBOut is simply a container for objects called AdjRIBTable, and that the container is indexed on 'PeerData' - in other words, as expected, AdjRIBTable is a value held per-peer.
+
+In RFC4271 terminology, RFC4271:Adj-RIBs-Out (plural) $\sim$  hbgp:AdjRIBOut, and RFC4271:Adj-RIB-Out (singular) 
+$\sim$ hbgp:AdjRIBTable
+
+
+\subsection{AdjRIBOut - route export processing} \label{adjribout}
+
+Here is the definition of an AdjRibOut value in BGPRib/AdjRIBOut.hs.
+
+\begin{lstlisting} [numbers = left, firstnumber=19,numberblanklines=false, title=BGPRib/AdjRIBOut.hs]
+type AdjRIBEntry = ([Prefix], Int)
+newtype AdjRIBTable = AdjRIBTable {fifo :: Fifo AdjRIBEntry}
+\end{lstlisting}
+
+The value, held per-peer, is simply a FIFO containing a list of values \lstinline{([Prefix], Int)}.  Recall, the semantics of AdjRibOut are the export route table for a peer - but, since TCP transport is reliable, the only data needed locally is the backlog that has not yet been sent to the peer.  So,  AdjRibOut in this case is simply a log of recent Updates that passed the per-peer export filter rules.
+
+But, the type of value stored here is not \lstinline{([Prefix], RouteData)} but \lstinline{([Prefix], Int)} - why?
+
+The explanation is not 'efficiency' - a reference to RouteData would be cheaper - it is rather a rudimentary strategy for dealing with the slow-peer problem $<<<< refer to the section of the document which describes this  >>>>>>$.
+
+This overview of the main execution pathway for route processing in hbgp concludes with the presentation of the the route export process.  The body of the export process and it instantiation is shown first, here:  
+
+\begin{lstlisting} [ title=Router/BgpFSM.hs:235]
+toEstablished :: F
+toEstablished st@St {..} = do
+  trace "transition -> established"
+
+  ...
+  
+  ribHandle <- Rib.addPeer rib peerData
+  _ <- forkIO $ sendLoop handle ribHandle
+  _ <- forkIO $ keepaliveLoop handle (getKeepAliveTimer osm)
+  writeChan monitorChannel (Right peerData)
+  return (Established, st {maybePD = Just peerData, ribHandle = Just ribHandle})
+\end{lstlisting}
+
+Two child processes are spun-out, a keepalive thread (not shown - BGP optionally sends empty heartbeat messages...) - and, the export thread, defined in this next fragment:
+
+\begin{lstlisting} [ title=Router/BgpFSM.hs:313]
+    sendLoop handle rh =
+      catch
+        ( do
+            updates <- Rib.ribPull rh
+            case updates of
+              [] ->
+                return ()             
+              _ -> do
+                bgpSndAll handle updates
+                sendLoop handle rh
+        )
+        ( \(BGPIOException _) -> return ()
+        -- this is the standard way to close down this thread
+        )
+\end{lstlisting}
+
+which finally closes the loop begun in the import stage, in the same source file, in the main loop of the FSM.  The call in  sendLoop which pulls 'proto export messages' from the AdjRibOut fifo is reached in the line 316: \lstinline{updates <- Rib.ribPull rh} which lands after a simple redirection in BGPRib/Rib.hs:
+
+\begin{lstlisting} [ title=BGPRib/Rib.hs:111]
+pullAllUpdates :: PeerData -> Rib -> IO [AdjRIBEntry]
+pullAllUpdates peer rib = do
+  (Rib' _ arot) <- readMVar rib
+  maybe (return []) (dequeueAll . fifo) (arot Data.Map.!? peer)
+\end{lstlisting}
+
+Note that the export thread runs on an 'idle poll basis' - there is no scheduling mechanism which would allow the export thread to sleep on an export event.  But, the GHC Haskell runtime is well optimised for cases such as this, which rely on MVar style data sharing, as long as the respective client processes are reasonably well behaved, i.e., return their MVar content promptly.
+
+\bigskip
+
+This concludes a lightning tour of the core of hbgp, and especially its main processing functions during 'normal' operation.  There is no particular claim that the design is optimal - it uses a single 'global' lock on the central state value, it uses standard Haskell containers for its RIB structures, simple best practice for wire-format encoding and decoding, full conversion to internal representation of all BGP message attributes.  All of these are reasonable targets for optimisation.  Yet, in stress testing it is shown to outperform all bar one of the mature and stable open-source BGP implementations, and even out perform the fastest (bird2) in higher scale scenarios.   It does so whilst enabling easy adaptation to novel, programmable behaviours.
+
+
+% Note the classical signature of 
+
+% - functional analysis, comparison with the RFC
+% - - derive a simple approach
+% -- by example
+% ---core RIB (pte,pt, mvar protected pt)
+% --- adjRibOut, simple data structure
+
+% concurrency and parallelism
+% - process structure in hBGP
+% - - Session, Router, BgpFSM
+% --- separation of concerns
+% -- process structure - ‘forkIO’
+
+% state
+% - outline of core data structures and containers
+% -- config
+% -- global
+% -- the ‘Rib’ - peers + prefixes
+% -- the ‘missing’ container - routes.
+
+% Haskell specifics
+% - use of containers, lists, queues
+% -- IntMap

@@ -1,0 +1,175 @@
+\section{Testing BGP Protection}
+BGP protection is an application running in hBGP as a controller embedded in a BGP AS with several ASBRs (Edge Routers).
+
+The expected behaviour is that under `normal' conditions the network behaves in the classical way - routes are evaluated based on a simple peer weighting principle, so that routes from a favoured external peer are always preferred and installed.
+
+The exceptional case is that a route from a preferred peer is detected by the hBGP controller to be dangerous, so that it takes special action to override the route, where it can.
+
+\subsection{Test case specifics}
+
+The test case uses connectivity in the data-plane to prove the expected behaviour.  Only the `safe' route provides a path to an endpoint used for connectivity verification.  The `bad' route is installed by a peer which does not host an endpoint which responds to the connectivity check - in fact, the peer announcing the bad route need not even have a functioning data-plane.
+
+Since the test is of an end-to-end multi-AS scenario, the minimal topology consists of:
+the managed AS itself, consisting of at least two `real' routers, or three for some test case variants,
+and the BGP controller, hBGP.
+three external AS systems, which need only be single BGP routers.  The external AS systems must be capable of hosting data-plane reachable end-points located in prefixes announced by the external AS router.
+
+The diagram shows the complete `logical' topology.
+
+The core of the test is as follows:
+
+\subsubsection{Phase One}
+\begin{itemize}
+    \item announce an initial `good' route from one external AS router
+    \item announce another valid route from the external AS router which will implement the connectivity check.
+    \item verify connectivity, e.g. `ping' between end-system hosts attached to the two external AS routers
+\end{itemize}
+
+\subsubsection{Phase Two (baseline case 1)}
+\begin{itemize}
+    \item announce any route from a third external AS router
+    \item as a baseline test, confirm that the test connectivity is lost after the bad route is announced
+    \item \begin{itemize}
+        \item inspect route tables to confirm the observation
+    \end{itemize}
+\end{itemize}
+
+
+\subsubsection{Phase Two (baseline case 2)}
+
+\begin{itemize}
+    \item start the hBGP controller
+    \item announce a route from a third external AS router which \textit{does not} have the `evil' attribute
+    \item as a baseline test, confirm that the test connectivity is lost after the bad route is announced
+    \item \begin{itemize}
+        \item inspect route tables to confirm the observation
+    \end{itemize}
+    \item note - this test shows that the controller is selective - only if the announced route has the specific signature which marks it as bad, will the controller take over and mitigate the `attack'.
+\end{itemize}
+
+\subsubsection{Phase Two (controller cases)}
+
+\begin{itemize}
+    \item start the hBGP controller
+    \item announce a route from a third external AS router which \textit{does} have the `evil' attribute
+    \item monitor connectivity
+    \item two possible positive outcomes may be observed:
+    either
+    \item \begin{itemize}
+        \item Connectivity is never interrupted
+    \end{itemize}
+    \item \begin{itemize}
+        \item Connectivity is briefly interrupted, but subsequently restored.  Note the duration of the interruption
+    \end{itemize}
+    \item \begin{itemize}
+        \item inspect route tables to confirm the observations
+    \end{itemize}
+    \item finally, modify the announced route from `poisoned' to `clean'
+    \item \begin{itemize}
+        \item the expected result is that the mitigation is withdrawn, and as a result the connectivity check fails.
+        In practice, if the `clean' route is actually viable, connectivity would be restored over a different path, however this test configuration doesn't have the capability to show this.  A more complex topology, in which two downstream ASs both announce the adverse route would allow the more complete experiment, which could measure not only the mitigation delay but also the restoration break in service as traffic reroutes to the preferred path when it is restored.
+
+        Nonetheless, the experiment fully validates the effectiveness of the controller in exercising selective supervision of the network.
+    \end{itemize}
+\end{itemize}
+
+\subsection{controller cases}
+The most challenging corner case is one in which both external AS route sources are connected as peers to the same ASBR in the controlled AS.  This is `most interesting' because it is the case which is hardest to mitigate.
+
+The simpler case, in which each external AS route source is connected as peer to distinct ASBRs in the controlled AS, can be mitigated even in the case that the `IBGP route visibility mechanism' is simple `Best External'.
+
+This more complex case requires the deployment of both the BGP `Add Path' capability, and the redistribution of the external AS interfaces addresses in an IGP.  In the absence of these configuration elements, the mitigation cannot succeed.
+
+\subsection{test infrastructure details}
+
+A logical diagram is already provided.  The specific configuration for testing is more complex.
+
+In these tests all data-path capable BGP routers are implemented as either Juniper or Cisco virtual routers.
+
+The virtual routers run as KVM virtual machines (VMs).
+
+The `bad' external router, and the hBGP controller are not VMs, rather they run either as containers or directly in the Linux host context that also hosts the BGP VMs.  In practice, the `bad' VM is also an instance of hBGP, because this allows easy manipulation of AS paths, so that the same router and configuration can be used for both baseline and actual mitigation capable tests.
+
+\subsubsection{test configuration networks}
+The KVM VMs are attached to multiple virtual bridges in order to emulate physically distinct networks.
+Although it is `valid' to attach all VM interfaces to the same virtual bridge, and rely on the separate network subnets to logically isolate the networks which are connected via the BGP ASBRs, for greater assurance that the experiment correctly implements isolation, and that the VMs are indeed in the forwarding-path for the connectivity checks, a separate virtual bridge is configured for every distinct link in the topology.
+
+The full set of isolated bridge networks is:
+\begin{itemize}
+    \item managed AS internal network (IBGP links between all managed ASBRs)
+    \item x3 EBGP links, one each per managed ASBR
+    \item x2/3 external AS router `local' network - used to host the connectivity check network endpoints
+\end{itemize}
+
+Note:
+\begin{itemize}
+    \item hBGP controller is attached only to the internal AS network
+    \item the external AS router hosting `bad' routes is attached to the external EBGP link network of one of the manged ASBRs, either the same as the source of `good' routes, or, for the simpler case, to the otherwise unused third managed ASBR.
+\end{itemize}
+
+\subsubsection{IGP in the managed AS}
+The complex mitigation case using Add Path requires that the external EBGP link addresses are reachable from all ASBRs in the managed AS.  This can be done either using an IGP (OSPF), or using static routes.  In realistic deployment static routes is not viable, however, for simplicity of configuration, the external interface addresses are configured as static routes, rather than using an IGP.  There is no impact on the validity of the experiment as a result of this simplification.
+
+\subsection{Configuration Examples}
+
+Full configurations for all routers and other agents is available in the project repository.
+
+Annotated configurations for a managed ASBR in the most complex use case are shown here, for both Cisco and Juniper virtual routers:
+
+\subsubsection{Junos configuration for ADDPATH}
+there is little unusual in either configuration - BGP Add Path requires a single additional line in the JUNOS configuration:
+
+\begin{verbatim}
+set protocols bgp group controller neighbor 192.168.120.99 family inet unicast add-path receive send path-count 5
+\end{verbatim}
+This configuration statement defines an internal BGP peer which is enabled for `add-path'.
+
+\subsubsection{Cisco IOS configuration for ADDPATH}
+
+In the case of Cisco IOS the additional or extended three configuration lines are similar:
+\begin{verbatim}
+router bgp 65000
+ address-family ipv4
+  bgp additional-paths select all
+  neighbor 192.168.120.99 remote-as 65000
+  neighbor 192.168.120.99 advertisement-interval 0
+  neighbor 192.168.120.99 prefix-list PFX0 out
+  neighbor 192.168.120.99 additional-paths send receive
+  neighbor 192.168.120.99 advertise additional-paths all
+\end{verbatim}
+
+\section{Evaluating BGP Protection}
+
+The evaluation of the experiment is rather simple: the observations consist of, for baseline cases, observing that when BGP Protection is not deployed, or when the announced adverse route is not `poisoned', then the service interruption on announcing an adverse route is persistent.  To illustrate the outcomes, sample console reports of the router routing state are shown, and for the successful mitigation, the time-to-restore-service is measured and reported.
+
+\subsubsection{base-case - mitigation required}
+
+Note that both `good' and `bad' routes are present in the respective receiving ASBRs, and also that the selected route shown in the connectivity check ASBR is the adverse route.
+
+The routing table in the exit ASBR is shown here, note the adverse route is selected, although both announced routes are show, even though both routes are announced by the same peer ASBR.  This is only possible when ADDPATH is configured.
+
+This table is for the case in which the poisoned route is announced, but hBGP is not running as a controller.
+
+This example shows the Juniper JUNOS case.
+
+A similar routing table is seen for the other base case in which the hBGP controller is active but the announced route is not poisoned by reason of a specific AS number in the AS-PATH attribute.
+
+\subsubsection{AddPath, adverse and replacement route advertised at the same ASBR - mitigation successful.}
+
+Here we show two route routing state reports.  For variety, this example is from the Cisco case.
+
+Note that there are now three competing routes announced in the mesh, one of which is a restated version of the original viable route which was replaced by a `poisoned' route.  Because the restated route has the highest Local Preference it is accepted and installed in all ASBRs.
+
+Note also that the restated route is only seen at the locus of control, being the ASBR which received the poisoned route.  Because the other routers would anyway forward via this ASBR for this route, they do not need to receive the override route from the controller.
+
+The time to mitigate was measured over 10 runs each for the same topology using both Cisco IOS and Juniper VMX as ASBRs.  The table shows the statistical analysis for these observations.
+
+Note that the service interruption is measured using the Connection Interruption Monitor tool developed for this purpose, which allows simple and accurate measurement of interruption and reliable recording of the duration for later analysis.
+
+\section{BGP Protection - Summary and Conclusions}
+
+The BGP Protection scheme has been shown to be effective and reliable as a mechanism, although for practical implementation would need to be integrated with one of the many proposed tools for detecting routing attacks or failures, and enabled to support the lambda BGP style of asynchronous call back.  (In the lambda BGP paper\cite{lambdabgp} we showed a more complete instance of a BGP controller based on hBGP, enabling an externally connected system to process, analyse and selectively respond to mitigate routing threats.)
+
+The main purpose of this implementation, PIR,  and its evaluation, is to demonstrate that a programmable solution can be implemented within existing core BGP networks, and not only in clean-slate networks, in which all routers should run hBGP or some other new routing system.
+
+It supports the argument that Programmability can be brought to existing networks in a simple, reliable and non-disruptive way.

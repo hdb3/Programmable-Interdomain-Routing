@@ -1,0 +1,157 @@
+% rewrite of the section on RINA, SCION, etc
+
+
+There are some prominent schools of thought in Future Internet.
+Two `radical' streams are RINA(2008) and SCION (2011),
+and a more conservative contribution is Dave Clark's "Designs for an Internet" 2017 and "Designing an Internet" 2023.
+
+It is quite difficult to summarise or analyse the contributions of SCION and RINA in short form.
+
+Their scope is ambiguous, and a rather large part of the related literature is devoted to philosophical issues, and broad assertions of limitations in existing architecture, which are used to subsequently motivate  strong claims that the advocated architecture has properties which the existing architecture does not, and even can not possess.
+
+(I) here strive to maintain a respectful stance whilst not shying away from observations about `the Emperor's new clothes'.
+
+It's reasonable to assert that there is room for doubt as to whether the claims of RINAs or SCIONs unique attributes really are reliable, not least because they disagree with each other, and with Dave Clark,
+and, after rather more than 10 years, there is no sign of widespread adoption, and neither does the `Established Church' (IETF, IAB) even yet recognise them in any degree whatsoever.
+
+But, I come neither to bury Caesar, or to praise him.  Rather, to ask, what did `Future Internet' ever do for us?
+
+
+Identifying Issues is Not the Same as Solving Them
+A common theme in both RINA and SCION is identifying `current problems', which, by implication are insoluble in existing architectures, with arguments and alternate approaches, as follows:
+\begin{enumerate}
+    \item describe a problem
+    \item state that the offered alternate is specifically `designed to address the problem' - leaving unsaid but implied, that unless specifically so designed, that the problem is not addressed at all
+    \item outline some high-level aspect of the offered alternate,  showing how it is `designed to address the problem'
+    \item assert without rigorous argument that the solution addresses the problem, and that it follows, with no further analysis, that the proposed alternative is intrinsically superior to the existing design
+\end{enumerate}
+
+Extensions of this rhetorical approach are to directly reference more mainstream work which align with the specific problem statement, whilst dismissing them in a single sentence, thereby countering the simple riposte such as `but what about BGPSEC', when engaged in brief conversation.
+
+Here is examined as examples of this rhetorical style, some of the claims and propositions about the SCION System
+\subsection{SCION}
+As an example the SCION public proposition, with respect to conventional BGP, consider the scion.org web page "Overcoming BGP’s limitations with SCION"\footnote{https://www.scion.org/overcoming-bgps-limitations-with-scion/},( our emphasis)
+
+\begin{quote}
+    
+\paragraph{The quest for better Internet routing solutions}
+Over the years, various solutions have been proposed to enhance Internet routing security and reliability. However, achieving widespread adoption of these solutions remains a challenge due to various limitations and complexities in implementation.
+
+\begin{itemize}
+    \item Internet Routing Registries (IRRs): These databases aim to provide a platform where network operators can share routing information, allowing access lists to be generated for routers. However, they suffer from accuracy and reliability issues, as anyone can add information without stringent checks on validity.
+    \item Resource Public Key Infrastructure (RPKI): RPKI enables the cryptographic verification of route ownership, with Resource Origin Authorisation (ROAs) allowing networks to state which Autonomous System Number (ASN) may originate a particular IP prefix. While promising, RPKI faces challenges in achieving widespread deployment and adoption, with only around 50\% of IP prefixes having valid ROAs.
+    \item BGP Security (BGPSEC): BGPSEC builds on RPKI to provide cryptographic assertions for every router en-route to a destination, preventing unauthorised insertion of ASNs into a route. However, deployment of BGPSEC is challenging and computationally intensive, \emph{with routers needing explicit support for its full benefits}.
+    \item Autonomous System Provider Authorization (ASPA): ASPA aims to address some of the limitations of BGPSEC by allowing ASNs to authorise other ASNs to carry their traffic through the Internet. While ASPA reduces incidences of route leaks and hijacks, it still has limitations in addressing attacks and \emph{cannot enable explicit path selection across the Internet}.
+\end{itemize}
+\end{quote}
+
+How can this analysis be critiqued?  That BGPSEC requires \emph{routers needing explicit support} is hardly surprising, and equally true of SCION, though it is almost certainly overall less difficult to apply BGPSEC in an operational network, than to apply SCION, either as replacement, or in parallel.  But more importantly, where is the business case, what is the scope?  Are we to think that SCION will replace BGP entirely?  If not, where is the design for interoperability and transition?  Where is the cost-benefit analysis which shows that an operator should focus on SCION, rather than say BGPSEC?  Which router vendor has a roadmap to integrate SCION in existing ASBR systems?  Where is evidence that the ISP stakeholder community has collectively or individually evaluated SCION and BGPSEC, and found a convincing case to pursue SCION as well as or instead of BGPSEC?  Or, the router vendors?
+
+Broadly similar critique can be made of the dismissal of Autonomous System Provider Authorization (ASPA) - \emph{ASPA cannot enable explicit path selection across the Internet}.  Indeed, it cannot, it does not claim it can - but it is only SCION that argues that the gold standard in `secure inter-AS communication' must deploy \emph{explicit path selection across the Internet}.
+
+For each of these arguments, not just on BGPSEC and ASP, but equally the points about IRRs, and RPKI, there are serious debates to be had, and as is so often the case in matters of security, the trade-offs are complex, often with no clear case to be made, and depending very much on specific use cases, including not just the application, but also the perceived threats.
+
+But, since SCION is the outside contender, it is surely incumbent upon advocates of SCION to make their case in great detail and with objective rigour, if the wider world of academia, let alone industry, is to be engaged.
+
+Incidentally, RINA can as easily be critiqued as SCION, the rhetorical stance is very much aligned.  The choice here of SCION as target is simply because the cited reference is authoritative (scion.org), and up-to-date - 2025.  A related problem with responding to FI initiatives is that it can be hard to distinguish which text is an authoritative and current representation of the `movement' ('program'?).\footnote{It is an interesting and perhaps significant point that there is not even a clear and non-judgemental (???) expression for the organisations, individuals and assets which develop and advocate for these concepts.}
+
+The argument to this point is based on taking FI programs at face value, and in particular the rather clear inferences and statements that their program is intended and expected to replace existing Internet services, protocols and Architectures.
+
+Staying with SCION specifically still - an objective analysis of SCION is that it represents an overlay network, which enables specific ISPs to create a value added service, delivered over existing access links, which provides some forms of strong `guarantee' of `security'.  Depending on the service model, it might be that the ISP customer can directly control the trust scheme, or, the ISP customer may delegate that responsibility to their trusted ISP.
+
+If SCION were to make this more specific claim, then the problem of understanding the first quotation becomes clear: it's simply a statement that the Internet of today can not offer certain classes of assurance for applications with special requirements.  And, it's not a claim that SCION could or should become the internet of the future, so at some future point BGP is `turned off'.  There remain very many serious challenges to SCION, especially in regard to how many users and applications in the foreseen user groups\footnote{'finance, healthcare, utilities, and public sectors, as well as operators of critical infrastructure.} actually need the very concrete `guarantees' that only SCION can provide, and specifically, whether any conventional ISP is the best choice to meet that need.  Since it is beyond doubt that secure encryption `works', given correct non-technical security procedures, and we would presume that even SCION delivered traffic would still be so secured, it leaves the unique claims of SCION to the very specific ones of:
+\begin{itemize}
+    \item inability for transit AS networks to conduct traffic based analysis
+    \item inability for transit AS networks to collect encrypted data, forcing the end-user to rely only on encryption and authentication, rather than `virtual' physical security, to protect their traffic
+\end{itemize}
+But, the obvious hole in this proposition is that there is arguably rather little demand for such extraordinarily levels of security, other than military/state-security, and large finance organisations most critical payloads.   Sure, if the extra `security' comes at very low cost, with no administrative or operational overhead or additional complexity, then \emph{perhaps} SCION has a place.  But, if some mid-level security requirement has to reach a range of correspondents, of whom only a few support SCION, then some other acceptable alternative is required, and if such alternative is available and deployed, then why use SCION for any of that application?
+And, finally, if the data is so critical, how is the customer to evaluate the reliability of the trusted ISP?  Key management and related security protocols are well known to be complex, and subject to non-technical attacks.  It might be that \emph{some} ISPs could pass the required levels of audit which would surely be required in order to establish such strong basis for trust, but the organisational cost of maintaining strong security throughout the ISP, to meet such audit requirements would necessitate significant and on going costs.  This SCION service is not going to be cheap....
+Meanwhile, there exists a wide range of commercial VPN and point-to-point services, which while not 100\% secure, are by obvious analysis (no 3rd party networks) - more secure than SCION can ever be.
+
+\subsection{Summary}
+
+Any response to an FI program can only be constructed in the context of the program claims.  Almost any FI program can escape the criticisms made of SCION, by explicitly limiting the scope of claim: it is surely right that academic exercises should think the unthinkable, and follow through form proposals of new ways to support old demands, or even new ways to provide services that do not yet exist.  To coin a phrase, `blue sky thinking'.
+
+Suppose that SCION, or RINA, were to start with the disclaimer: "please do not take this architecture, design or implementation as anything other than a thought experiment, or a proof-of-concept", and then in evaluation, give an objective outline of why the proposal could not meet the requirements for current services and service users, and, in the case of Future Internet, an outline of what would be the global costs of deployment, disruptive impact on service, impact on business models, level of risk, capability of maintaining indefinite interoperability  with the existing Internet ecosystem.
+
+Or, as it seems that SCION might claim, where the proposition may not really be global replacement of BGP, then suppose  instead that the program provided a similar impact and cost breakdown, for the subset of Internet users and ISP that they expect to address, alongside evaluation of, competitive comparable, existing, non-Internet services.
+
+Were this to be done, then the response can be calibrated: if the program is not BGP replacement, then by all means, analyse the technological or scientific aspect, with no economic or social dimension.
+But also, do not label it `Future Internet'.
+
+
+\subsection{RINA}
+
+RINA is perhaps the most radical of the FI schools.  Its scope is universal, it seeks to touch every part of hardware and software which today are connected to the Internet, and even to touch other services which are not global Internet connected, but which use any of the IETF protocols, and even some that do not.
+Unlike SCION, in RINA, every thing above the physical layer: Ethernet, access network, optical, or mobile, is in scope.  Vanilla Wireshark will decode nothing above the physical layer when connected to a native RINA network.
+
+It's not to say the RINA does not have an answer for running either over or under IP, but core RINA carries no IP, and envisages a future in which every device is purely a RINA endpoint.
+
+The reason for this extraordinary breadth of scope is rooted in the philosophy - RINA deconstructs the existing network architecture(s) which are embodied in IP, and effectively claims that the problems of IP, and thus the Internet, are so deeply embedded in assumptions about, for example, the significance of IP layer 3 addresses, that the only viable path is to start again form the beginning.
+
+Examples of problem areas in IP (taken directly from RINA, ETSI doc, section 4) include:
+
+\begin{itemize}
+    \item Naming, addressing and routing
+    \item Mobility and multi-homing
+    \item Quality of Service, resource allocation, congestion control
+    \item Security
+    \item Network Management
+\end{itemize}
+
+IN addressing each area in turn, broad statements are made, for example:
+\begin{quote}
+4.3.3 Naming, addressing and routing 
+
+....
+
+    Naming the interface instead of the node. Within a layer a node is the protocol machine that strips off the header of
+that protocol in that layer. Therefore protocol PDUs within a layer are addressed to nodes. However in the TCP/IP
+protocol suite addresses are assigned to interfaces (Points of attachment to the layer below), not nodes. This fact makes
+real multi-homing impossible to support (because the network does not know that two interface addresses reach the
+same node), makes router forwarding tables 3/4 times larger and greatly complicates mobility. 
+\end{quote}
+
+It's a remarkable set of statements, especially for anyone that has worked in Internet delivered services in recent decades.
+The concept that any modern Internet delivered service is vulnerable to failure because some address, resolved through DNS, might resolve to an address of a single physical interface of a server which became unreachable, is ludicrous.
+
+Any large public internet service has a wide range of options which provide for load balancing and fault tolerance.
+
+SCTP has existed since 2000, VRRP since 1998.
+
+Hosts can support loopback or dummy addresses which are not bound to specific interfaces.
+
+BGP with BFD can reroute traffic around failed interfaces in milliseconds, layer two solutions also exist.  ECMP works.
+
+RINA is not needed to solve any base level problem concerned with multi-homing.
+
+And, we can be sure that an advocate of RINA would not for one moment defend the proposition that there is any kind of unsolved problem relating to multi-homing.
+
+Perhaps the only way to `defend' this statement is look closely at the words:  \emph{This fact makes real multi-homing impossible to support...}.
+It is not saying, in this isolated sentence, that there exists some deep problem with IP based systems, for which no good solutions exists.  It's just a statement about some abstract term - \emph{real multi-homing}.
+
+But, the sentence is in a context: the context is an ETSI specification, and it in a section which explains why IP should be replaced or redesigned.
+
+Fortunately, \emph{real multi-homing}is defined in the next paragraph: \emph{packets that are already en route towards an IP address belonging to an interface that is down will be lost (hence, only partial multi-homing support is achieved).}  So, \emph{real multi-homing} means more specifically that the architecture or protocol should enable packets in flight to be delivered when an interface is down.  But surely, that is exactly what any of the above mentioned techniques (BGP multipath, L2 LAG, VRRP, SCTP, ....) can do?
+
+But, is the meaning of the expression `packets .. will be lost' meaning that application layer will suffer loss, or simply that the unreliable-by-definition IP layer may occasionally, for milli-seconds, suffer a recoverable packet loss?
+If the former - application layer loss - the statement is demonstrably wrong.
+If the latter - \emph{IP should not be unreliable} - then this is not a problem related to \emph{multi-homing}, but a criticism without supporting argument, of the use of unreliable transport at `layer 3'.
+Perhaps OSI CONS services are needed - or link level HDLC?
+
+And, just as SCION make passing reference to  `unsatisfactory' existing approaches such as BGPSEC or ASPA, RINA mentions that \emph{multi-homing has partial support through protocols that exploit the use of multiple IP interfaces (such as SCTP, MP-TCP or SHIM6).} - whilst ignoring the more generally applicable BGP multipath, L2 LAG, and VRRP.
+And leaving the reader to believe that the entire ecosystem relying on IP, has an unresolved problem with material impact, which can only be addressed by discarding IP.
+
+Just as RINA finds IP to be an unfixable design, so does RINA also find TCP to be irredeemable: the exact words: \emph{If congestion was managed at the level of each individual network, shorter and more effective control loops would be possible.}
+RINA is less specific about how congestion control should work, there is nothing authoritative to be found, beyond generic statements that are best construed as implying that transport services should be managed on a hop-by-hop basis rather than end-to-end.  A paper in 2016\cite{teymoori2016} observed that there was at that point no RINA definition of congestion control , and in 2019 still no RINA congestion control, although the authors of this paper \cite{hiorth2019} were keen on RINA. because it could offer a home for a hop-by-hop congestion control system in WiFi networks.
+Both the 2019 paper and RINA ETSI document are keen to dismiss a specific type of congestion-control system   -(Performance Enhancing Proxies (PEPs)) -  used for corner cases where end-to-end TCP is particularly inefficient.  Quite why PEPs being unattractive architecturally redeems an architecture which proposes to introduce the same principle, is not clear.
+As the topic of transport protocols, congestion control generally, and the limitations or otherwise of TCP have been widely analysed, the only statement which can be made is that if RINA proposes universal hop-by-hop congestion control, it will be interesting to hear how that will scale for core routers running at many terabits per second, which currently hold no per flow state that can be aligned with an end-system RINA domain.  The RINA congestion control concept is rather diffusely defined - the main proposition appears to be that it is not `one-size-fits-all' - network designers can customise the system, and "each DIF can manage congestion in its own resources" (ETSI DOC section 8.4).
+
+In summary of the RINA position on congestion control, as of 2019 - \emph{TCP has to be replaced, the replacement should use hop-by-hop mechanisms, but also ECN could be used}.  There is no attempt made to address congestion control in an end-to-end Internet context, or quantify what level of state a core router should hold, for flows at what level.  But, we can rely on the fact that this rather high-level explanation is indeed intended to address Internet scope traffic, because of the repeated reference to the imperfect existing remedy of (Performance Enhancing Proxies (PEPs).
+
+But, the words in the ETSI document say exactly this.
+
+And, problematically, the entirety of the RINA and SCION proposition is riddled with absurd assertions about weaknesses in current Internet architecture.
+
+Its not to say
+

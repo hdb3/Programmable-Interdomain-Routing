@@ -1,0 +1,25 @@
+{\centering \section*{Abstract}}
+Internet routing is far from optimal.  The constraints on improving it are many and varied, such that many proposals amount to:
+``\emph{If I wanted to get to there, I would not start from here}."
+
+%%% \textcolor{red}{DH: Some small edits in the following paragraphs}
+
+At its core the problem of optimising Internet routing is a hybrid of economic and technical issues: whilst that is not so unusual in the very broad field of Computing, the difference in this case is that there is only one Internet, and, since the Internet came into being, it has only ever changed incrementally.
+But, as there is only one instance of the global Internet, and it has a vast installed base, there is enormous difficulty in creating proposals for new Internet architectures which can demonstrate viable operational and economic paths to deployment.
+
+The global challenges of Internet optimisation are replicated, in microcosm, in every large transit network,
+which are the elements providing the ubiquitous connectivity that underpins the global Internet.
+Therefore, new models for Internet transit networks that lack viable operational and economic paths to deployment are also extremely difficult to motivate - less so than a complete redesign of the global architecture, but piecemeal improvements at the inter-domain level must also meet the additional requirement of compatibility with legacy networks, which a global clean slate approach does not have to do, except for the tricky issue of transitioning.
+
+It is at least plausible that the future Internet \emph{will} replace these transit networks entirely, with systems that are externally compatible, but whose internal structure is radically different.
+Such work is an interesting prospect for software defined networking (SDN) based research.
+
+However, when Google and Facebook faced similar challenges to those of the transit network operators, and had the opportunity to engineer a `clean slate' design, the approach they chose was to take existing hardware and software, and existing architectures and protocols, and to compose their ideal solution from existing components: because they could - and because it was cheaper, faster, and lower risk.
+
+This thesis explores the topic of improving Internet routing through essentially the same lens.  The basic idea is hardly new - the difference is that today there are tools available which were not even imagined when researchers first posited \emph{The case for separating routing from routers}\cite{Feamster2004}, although today the principal goals and challenges are improvements in security and availability, rather than scalability and stability.
+
+%%% 	[Retain, or not?] \textcolor{red}{There is no doubt this could be done - or is there? Biological evolution produced the eye and the human brain, although not the wheel.}
+% NH - they say , kill your darlings, and this is certainly a darling.  But, I rtaher like it.  I think it is original, but I am not sure.
+
+The daunting task at hand is the re-engineering of an existing global system, without any downtime, and based on a strong and credible cost-benefit argument.
+This thesis aims to show how that might be achieved.

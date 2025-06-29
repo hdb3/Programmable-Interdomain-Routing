@@ -1,0 +1,105 @@
+\documentclass[12pt,a4paper,onecolumn]{LancsThesis}
+
+\interfootnotelinepenalty=10000
+
+\hyphenation{Local Preference}
+
+
+\newcommand{\fullciteinfo}[1]{ \citetitle{#1} ~ (\citeauthor{#1}, \citeyear{#1}) ~\cite{#1}}
+
+\newcommand{\hbgp}{\(\lambda\)BGP\xspace}
+
+\newcommand{\NH}[1]{
+  {\color{Blue}NH: #1}
+}
+
+\newcommand{\NHx}[1]{
+  {\color{LimeGreen}NH,resolved?: #1}
+}
+
+\newenvironment{myquote}
+  % {\begin{quote}\itshape}
+  % {\begin{quote}\sffamily}
+  % {\end{quote}}
+  {\begin{quote}\sffamily\begin{singlespace}}
+  {\end{singlespace}\end{quote}}
+
+\newlist{myitemize}{itemize}{1}
+\setlist[myitemize,1]{label=-, leftmargin=*, noitemsep, topsep=5pt}
+
+\lstset{
+basicstyle=\small\ttfamily,
+columns=flexible,
+breaklines=true,
+% captionpos=b
+}
+\captionsetup[lstlisting]{position=top, singlelinecheck=off, labelsep=colon, justification=raggedright, font={sf,bf,footnotesize}}
+
+
+% \pdfpagewidth=\paperwidth
+% \pdfpageheight=\paperheight
+
+\titleformat{\chapter}[display]
+{\normalfont\huge\bfseries}{\chaptertitlename\ \thechapter}{20pt}{\Huge}
+\titlespacing*{\chapter}{0pt}{-25pt}{40pt}
+
+\university{\href{http://www.lancaster.ac.uk/}{Lancaster University}}
+\department{School of Computing and Communications}
+\title{Programmable Interdomain Routing}
+\subtitle{An evolutionary SDN Approach}
+
+\documentType{Thesis}
+\major{Doctor of Philosophy}
+\author{Nicholas Hart}
+\supervisor{Professor David Hutchison \\ Professor Nicholas Race \\ Dr Haris Rotsos \\ Dr Vasileios Giotsas}
+\location{Lancaster - England}
+\thesisYear{June 2025}
+\logo{
+\includegraphics[scale=1.5, right]{images/uni.png}
+}
+\graphicspath{ {images/} }
+% \bibliographystyle{plain}
+
+\addbibresource{mendeley.bib}
+
+\begin{document}
+\setlength{\parindent}{0pt}
+
+    \frontmatter
+
+    \maketitle
+    % \doublespacing
+    %\setlength{\parskip}{1em}
+    \setcounter{page}{1}
+    \addtotoc{Dedication}{\input{dedication}}
+    \addtotoc{Acknowledgements}{\input{acknowledgments}}
+    % \singlespacing
+    \addtotoc{Abstract}{\input{0_abstract}}
+    \clearpage
+    \input{diagrams}
+    \clearpage
+    \singlespacing
+	\tableofcontents %\clearpage
+    %\addtotoc{List of tables}{\listoftables}
+    %\addtotoc{List of figures}{\listoffigures}
+    \mainmatter
+    \doublespacing
+    \input{1_introduction}
+    \input{2_background}
+    \input{3_relatedwork}
+    \input{4_research_context}
+    \input{5_on_bgp}
+    \input{6_research_scope}
+    \input{7_implementation}
+    \input{8_results}
+    \input{9_conclusions}
+    \backmatter
+
+    \singlespacing
+    % \hackplain								   % Do not enumerate first bibliography page
+    % % \addtotoc{Bibliography}{\bibliography{mendeley,rfcs}}
+    % \addtotoc{Bibliography}{\bibliography{mendeley}}
+    \printbibliography
+
+
+\end{document}

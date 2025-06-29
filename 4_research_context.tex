@@ -1,0 +1,688 @@
+\chapter{SDN and Future Internet}
+How are SDN and Future Internet related, if at all?
+
+I will argue that in the final analysis, SDN has no single meaning, or even any single core, if ambiguous, common set of concepts or propositions.  And in particular, that its meaning (or usage) has evolved over time, using the term `evolved' with precision: had it had not evolved, then it would surely have died out, as its original value and validity were invalidated by experience.
+
+It seems that Future Internet as a topic or concept, suffers less, or not at all, from the survival challenges that SDN did - perhaps because it means so little in comparison, such that invalidation is impractical?
+
+But I argue that Future Internet studies and `SDN' are actually really two instances of a similar meme <<meta topic??>>.
+And, a corollary of this argument is that `SDN' is a useful term ,as long as its limited and flexible semantics are mutually understood by speakers and audiences - but no more so than, say, Future Internet.
+
+But, another corollary of this argument is that `SDN' is \textit{only} a useful term, when its limited and flexible semantics are mutually understood by speakers and audiences.  In contrast, the term `Future Internet' is arguably more useful, because of the relative low risk of confusion as to its meaning.
+
+In recognition of this proposition, the term `SDN' is neither in the title nor very much at all in the substance of this work, with the exception of within the chapter `Related Work'
+
+\section{SDN}
+First is given, a brief summary of the conventional perspective of SDN, touching on history, motivation, concepts and evolution.
+
+There follows a pragmatic and more opinionated perspective on what SDN `could be', and perhaps `should be'.
+
+% {\color{red} from: SDN aims to solve intractable network problems by computation ***}
+
+\subsection{What is SDN?}
+\subsubsection{Classical networks and their shortcomings}
+SDN aims to solve intractable network problems by centralised computation.  The idea is that current networks are essentially static and inflexible in their behaviour - they are like simple mechanical machines - every port and every link behaves in the same way, all of the time, for all traffic.  Routing follows simple distributed algorithms which direct all traffic down the same path, and often fails to make effective use of available resources. Every connected system has unrestricted access to every other.  The network has no means of detecting or mitigating network overloads or malicious network traffic.
+More sophisticated classical networks introduce customised behaviours, e.g. distinguishing and prioritising different traffic types based on application or user priority, blocking certain traffic flows in the interests of security, routing or diverting specific traffic in response to anticipated or detected traffic patterns.  Typically, however, even such sophisticated networks are entirely static in their behaviour, and can provide only crude and coarse grained prioritisation, control or routing of traffic and thus protection of network service quality.  More sophisticated networks are often more expensive and more difficult to manage, yet are still often far from optimal in their delivery of services and utilisation of resources.
+\subsubsection{Network service goals}
+The first goal of a network is to deliver user traffic to the intended destination, without excessive delay, error or loss.  An increasingly important sub goal is to block unwanted traffic, and a third goal is to monitor user traffic.
+Effective network management in pursuit of the first goal is essentially an optimisation problem: for if there is sufficient bandwidth in the network to transport all offered traffic, all of the time, then there is no scope to improve the network service.  So, network optimisation comes into play when a network cannot meet all user demand.  In some cases, it may be that better resource assignment can meet all demand, for example by redirecting traffic from oversubscribed paths.  A more sophisticated resource reassignment might be achieved by prioritisation of traffic, recognising that some applications may tolerate some network delay and transit time variations.  In this case, resource management may need to take into account network buffers, as well as methods for identifying different traffic flows and applying appropriate distinct scheduling regimes.
+\subsubsection{The need for SDN}
+Networking hardware essentially sacrifices flexibility for speed - any general purpose computer can perform the function of a network device, but it cannot do so with sufficient and consistent speed.  Networking hardware design at the ‘chip’ level attempts to capture all possible required networking behaviours, and provide a configuration mechanism for the hardware which allows supervisory software (‘the control plane’) to specify the precise ‘forwarding’ behaviour needed to deliver the network service required.  Typically, the hardware function is defined in terms of ‘match’ and ‘action’, where ‘match’ defines a boolean function taking as input the message content, whilst action consists of combinations of message modification and message forwarding (routing and scheduling).  A more sophisticated design may have quite complex buffering and scheduling capability, whilst simpler systems may offer only output port selection.
+This approach to building network hardware requires device software which complements the hardware design, but as long as the hardware match/action set is sufficiently rich actually provides quite a range of options for the network architecture built on top of it.
+
+% {\color{red} from document file: A response to “Software-Defined Networking: A Comprehensive Survey”}
+
+\subsection{A response to “Software-Defined Networking: A Comprehensive Survey”}
+
+This lengthy and authoritative paper \cite{Kreutz2015} was published in 2014 and is an exhaustive and persuasive argument for SDN approach to future networks.
+
+It also presents an excellent vehicle for collecting the arguments against SDN as a generic solution to Networking challenges, by accurately dissecting the flavours of SDN and acknowledging the challenges which it has yet to find solutions for.
+I argue that the paper marks the high tide mark for SDN, at least in the OpenFlow centric sense which the paper articulates so rigorously.
+
+\paragraph{Core of (my) objections:}
+
+The paper does not effectively dissect the different types and uses of networks, nor the architectural choices which a network architecture designer must resolve - e.g. enterprise networks, access ISPs, transit ISPs, mobile networks and transport networks face very different challenges, and within a single network domain edge functions and core switching functions are surely distinct.
+
+In this paper, the most elevated attribute of the SDN is the separation of the control and data-plane, and the (‘logical’) centralisation of control.
+Yet these terms are inadequately defined, and by qualifying the terms ‘separation’ and ‘centralisation’ with the word ‘logical’, rendered almost entirely meaningless.
+Yet without these precepts, SDN itself is reduced to nothing more than a grand term for anything based on OpenFlow.
+
+In my view, SDN is a solution looking for a problem, and SDN suffers from a huge dilemma - it is evident that pure OpenFlow based solutions are unviable (***), yet without OpenFlow at its heart there is no substance to any of the SDN work except for the “Integrated hybrid SDN” model which is mentioned only in passing at the end of the paper.
+The essence of the problem is that building an effective and resilient large network requires a distributed control system in order to meet goals of performance resilience and responsiveness.
+Whilst it \textit{is} true that a logically centralised view of the network is needed to formulate consistent and useful policy and service definition, it does not follow that an \textit{implementation} of network control should itself be centralised.
+The essence of the problem is that some aspects of network control are best done centrally, and others locally - the challenge is to find a balance.
+
+\subsection{The four pillars of SDN}
+
+\textit{The control and data planes are decoupled. Control functionality is removed from network devices that will become simple (packet) forwarding elements.}\footnote{all unattributed quotations here are from \cite{Kreutz2015}}
+
+This statement exhibits constructive ambiguity - 
+Control and data planes are \textit{logically} decoupled, by definition.
+
+The SDN architecture diagrams however show a \textit{physical} decoupling - implying that control traffic (i.e. controller-FE traffic) actually uses its own physical links.
+This appears rather impractical (and discounts the point that some control traffic (neighbour/topology discovery) still has to be done over shared use links.
+The other aspect/interpretation is the separation of the forwarding hardware from the ‘control’ hardware - but this is again semantics - both existing and proposed solutions have identical architectures - a specialised chipset under control of a software running on an adjacent general purpose CPU - often now intel/AMD x86.
+The distinction is that the FE software (‘firmware’) in the SDN case offers a specific API which provides a more granular control over the dataplane hardware, and excludes the possibility of delegating any local network logic to the FE.
+
+The flow abstraction:
+
+\textit{Forwarding decisions are flow based, instead of destination based. A flow is broadly defined by a set of packet field values acting as a match (filter) criterion and a set of actions (instructions). In the SDN/OpenFlow context, a flow is a sequence of packets between a source and a destination. All packets of a flow receive identical service policies}
+\smallskip
+\textit{at the forwarding devices. The flow abstraction allows unifying the behaviour of different types of network devices, including routers, switches, firewalls, and middleboxes. Flow programming enables unprecedented flexibility, limited only to the capabilities of the implemented flow tables.}”
+
+
+This apparently simple statement hides much complexity and ambiguity: it is unclear whether the statement is describing a network service, or an attribute of a single forwarding element, or of an entire network.
+It is unclear who or what defines a flow, how (mechanism) it should be defined, and with what degree of granularity.
+As written, it could be claimed that almost every current network equipment is already flow based, given the ubiquitous capability to configure protocol port based ACLs.
+As written it seems that state-based firewalls are not included.
+We are left to wonder whether there is some minimal subset of criteria which an equipment must support, or some minimal number of flows and constraints on the speed with which flows can be installed, or the behaviour when a system cannot meet the flow demands upon it.
+In common understanding a ‘flow’ often corresponds to a TCP session - yet surely this is an impractical objective in the context of a core router.
+The only sure interpretation of this statement is that in some fashion a network device should be capable of using fields other than the destination address to make a forwarding decision - but this could be nothing more than a simple static label switch or firewall.
+
+Possibly more problematic is that whilst the ‘match’ requirement is highlighted, the ‘action’ requirement is mentioned only to call out ‘identical service policies’ - which seems to imply something more than a forwarding decision - yet OpenFlow devices are sadly lacking in the area of service policy implementation - there is no mechanism for defining rate or queuing treatment in OpenFlow.
+
+“\textit{Control logic is moved to an external entity, the so-called SDN controller or NOS. The NOS is a software platform that runs on commodity server technology and provides the essential resources and abstractions to facilitate the programming of forwarding devices based on a logically centralized, abstract network view. Its purpose is therefore similar to that of a traditional operating system.}”
+
+The analogy with an operating system is rather loose.
+The NOS does many things an OS does not, and an OS very many which an NOS does not.
+In particular, in an OS the applications run natively on a processor - in an NOS the ‘processor’ is the network, and the applications do not run in it.
+A big challenge is to formulate what abstraction is presented to an application running above an OS, and how to enable more than one such application to operate without ‘treading on the toes’ of the other.
+The simplistic answer is the FlowVisor style abstraction - but in reality this solves the problem only trivially by partitioning the underlying network into partitions which are the exclusive domain of a single application.
+More general approaches, e.g. ‘network intents’ solve the problem in a different trivial fashion, by removing almost all scope from the application, and still do not really solve the problem of conflicting intents.
+The reality (IMHO) is that the abstraction is wrong - a network is NOT a general purpose system which can perform simultaneous distinct and orthogonal tasks - the problem is conceptual and induced by using the term ‘NOS’.
+
+“\textit{The network is programmable through software applications running on top of the NOS that interacts with the underlying data plane devices.
+	This is a fundamental characteristic of SDN, considered as its main value proposition.}”
+
+A continuation of the earlier ‘pillar’ - the challenge remains ‘what abstraction is provided?’: if topology is hidden then the NOS must perform complex calculations and make possibly unacceptable trade-offs to execute requests from applications; if the topology is not hidden then the problem of resource allocation and real-time response to network topology change is simply pushed up a layer, in which case what role has the NOS performed beyond providing a single control point for a range of disparate devices with no holistic insight?
+
+\subsubsection{What does SDN get right?}
+
+SDN proponent identify some valid motivations for there work: the problem is that they fail to show that SDN is a logical solution to these problems, and in fact there is no explicit argument which starts with the valid requirements, examines the range of solutions and explains how SDN best fits the requirement - or even explains why classical solutions cannot be evolved to deliver a solution.
+
+Network operators and network users care only about the behaviour of the network as a whole, and as a result the policy underlying configuration consists only of network wide statements.
+However, the current paradigm is to write device level configurations with the intent of delivering consistent network wide effect.
+SDN offers the proposition of automating device level configuration, thereby removing sources of error, speeding up configuration change and thereby saving time and money.
+As an additional benefit, more complex functionality which may be technically feasible but in practice ‘just too hard’, may become feasible; e.g. selective monitoring of user traffic, or more complex network security rules.
+This corresponds to some degree to the promised value of SDN: “\textit{Note that the logical centralization of the control logic, in particular, offers several additional benefits. First, it is simpler and less error prone to modify network policies through high-level languages and software components, compared with low-level device specific configurations.
+Second, a control program can automatically react to spurious changes of the network state and thus maintain the high-level policies intact. Third, the centralization of the control logic in a controller with global knowledge of the network state simplifies the development of more sophisticated networking functions, services, and applications.}”  ("Software-Defined Networking: A Comprehensive Survey", Section 2.2 \cite{Kreutz2015})
+
+A key expression in the SDN proposition is the ‘\textit{logical centralization of the control logic}’ - which we can presumably take to mean that for the purposes of the network operator there is a single point of control, and that the network exhibits corresponding behaviour - however, this laudable goal is a \textit{functional} goal, not a design directive.
+
+
+\bigskip
+
+In \fullciteinfo{bremler-bar2014} a separate argument is made:
+\textit{To alleviate the lack of in-path functionalities within the network, a myriad of specialized components and middleboxes, such as firewalls, intrusion detection systems, and deep packet inspection engines, proliferate in current networks.}
+Here, a very different case is made for SDN - in which traditional network functions are overloaded with a new category of functions - however these functions are extraordinarily complex and diverse - and it is surely not the case that SDN/OpenFlow is being proposed as the ubiquitous enabler for implementing e.g. DPS systems, or stateful firewalls, with complex and endpoint aware rule-sets.
+
+and, further:
+
+\textit{As previously mentioned, the strong coupling between control and data planes has made it difficult to add new functionality to traditional networks. The coupling of the control and data planes (and its physical embedding in the network elements) makes the development and deployment of new networking features e.g., routing algorithms) very difficult, since it would imply a modification of the control plane of all network devices through the installation of new firmware and, in some cases, hardware upgrades. Hence, the new networking features are commonly introduced via expensive, specialized, and hard-to-configure equipment (also known as middleboxes) such as load balancers, intrusion detection systems (IDSs), and firewalls, among others. These middleboxes need to be placed strategically in the network, making it even harder to later change the network topology, configuration, and functionality.}
+
+
+This is a very hard to follow argument: the first proposition is that deploying a new routing protocol in a closed source system is difficult (unless the vendor already has the solution available!).
+This appears unrelated to the second proposition, which is that complex middleboxes are increasingly widely distributed.
+The implication is that SDN would
+
+Existing network equipment provides, in one sense, a ‘closed’ solution - forwarding elements construct their FIB tables under control of software which cannot be modified by the network operator, and which provides only very specific mechanisms to configure.
+The result is that forwarding elements very reliably execute the functions their users expect.
+And, whilst configuration can be complex, in the majority of cases
+
+SDN focuses on the wrong view point of the network - the FE, rather than the link.
+In a network the critical resource is not forwarding element complexity - it is link capacity, and its dual, buffer management.
+If there is a problem with legacy networks, it is the optimisation of traffic routing, both over the long term and in the short term.
+The solution to this requires both better traffic monitoring capability and better traffic management capability, as well as agile path selection.
+These objectives seem rather orthogonal to the SDN solutions on offer.
+
+\paragraph{Distinguishing network functions and services, and what they mean for SDN
+}
+
+The primary job of a network is to transparently deliver packets between users.
+
+The only positive measure of success is that packets are delivered unchanged, reliable, quickly and in sequence.\footnote{Negative measures might include prevention of unwanted flows.}
+
+After this primary goal we should introduce secondary goals, which are principally about service protection and resource management: they are only important in as much as they contribute to the primary goal - they are
+
+\begin{enumerate}
+    \item security - traffic should be delivered only to the intended recipient, without interception or inspection, and unwanted traffic should not be delivered
+    \item network resources should be fairly allocated when traffic exceeds capacity.
+\end{enumerate}
+
+From a network service user perspective the above simple function is all, however network operators have more complex needs - which may or may not align with their users.
+
+In particular, network operators may wish to provide their users with ‘value added services’, which in practice may mean subjecting some or all of a users traffic to specific processing, over and above simple transport; additionally, networks may also wish to divert or monitor user traffic, covertly or overtly, for reasons of enforcement or surveillance.
+
+
+\subsection{SDN Retrospective}
+
+
+% I’ve been decrying SDN for a long while now, and it’s not obvious today whether I was right or wrong.
+This is a reflection on the state of SDN in 2025 - its relevance, adoption and future prospects.
+One might say that, if you pick your sources carefully, you can make a convincing case that in 2025 SDN is dead, or equally that SDN has truly become mainstream. It all depends on what you think SDN means, meant, was intended to address, or can address.
+
+I’ll argue that discussions about SDN can be made more meaningful by defining specific domains and techniques - and if we allow that ‘SDN’ includes the widest possible range of these then of course we are likely to conclude that SDN is ‘a success’ - but if the scope is reduced to, say, operational deployments of hard SDN technologies such as OpenFlow or P4, then the case for ‘SDN success’ is rather harder to sustain.
+
+Probably the most difficult argument to refute, or to prove, is the influence that SDN has had on the evolution of network technology.
+But, this is a ‘stone soup’ kind of argument: it is impossible to conceive that network technology evolution would not be driven by innovation in software, hardware, and their interplay.
+Thus, more recent innovations in networks, e.g. 3gpp network slicing, and cloud network virtualisation generally, have been claimed as examples of SDN principles in action.
+But, when the basis of SDN is examined it is hard to argue that centralised control of networks only started with SDN: rather, SDN was simply a recognition of one architectural idiom, which had existed since the first networks were being developed.
+So, in order to rescue SDN as a primal inspiration for modern networks, it has to be much more closely linked to specifics than just the existence of ‘network controllers’.
+
+Perhaps the next up ‘SDN principle’, which acolytes will claim, is the concept of controlling networks in terms of ‘flows’.
+But this is equally dubious as an SDN originated idea - if one looks at network architecture as a spectrum between simple circuit switched / fully resource allocated paradigm, through to a plain switched or routed, best-effort network, the idea of flows can be seen as a hybrid - statistical multiplexing is enabled, but within a bulk stream distinct treatment is applied, discriminating treatment based on packet attributes which can be expressed in abstract form as ‘flows’.
+But this idea exists since the IETF coined DiffServ and IntServ, and since ATM defined multiple classes of service, which include UBR and ABR.
+In truth, it is hard to differentiate ATM and many OpenFlow idioms, excepting for the fixed length cell / variable length packet dichotomy; and if we substitute MPLS for ATM, with a ‘Path Computation Element’ as the ‘controller’, how is this not an SDN network?
+Yet the elements here predate SDN by years, or in some cases decades.
+\paragraph{So what precisely did SDN bring,} that was novel?
+
+Arguably, nothing, in the same sense that the ‘Agile Manifesto’, which merely crystallised many principles of software engineering which were already current, was not the source of the movement, merely its expression.
+
+So, if we are happy to accept that SDN is merely a broad expression of a design philosophy, it is hard to deny its validity.
+
+But did it really change the way that networking industry evolved?
+
+Or, merely chart something that was already ‘in the aether’.
+
+\subsection{The Richard Dawkins  Question (or, The SDN Delusion)}
+
+\textit{Is SDN a good thing?} Even if you accept the premise that SDN is rather ambiguous in its meaning, influence, value and success, does that matter?
+
+I argue strongly that \textit{YES}, \textit{it does matter}, and that its impact is decidedly net-negative.
+Opportunity cost, and confusion, and distraction follow in its wake.
+Armies of students and researchers have conducted their educational and professional lives in its pursuit.
+Students emerge into jobs in the real world, where they find that networks are \textit{not} built based on SDN principles, and that they could have been learning different skills, and accumulating more relevant knowledge.
+The underlying principle that networks are almost universally based on distributed control rather than central control comes as a shock, and the fact that the biggest and fastest and most reliable networks run ‘old-fashioned’ protocols, whilst OpenFlow and P4 are largely just toys, is a surprise.
+They have to relearn their intuitions when they discover that few networks of any size or importance are operated with any form of resource reservation, beyond basic offline capacity planning and traffic engineering.
+
+Equally, for academics, reality goes largely unnoticed.
+They believe that ‘5G/6G’ networks are ‘SDN based’ in the sense of OpenFlow and controllers, which could hardly be further from the truth.
+They never learned about IP tunnelling, and MPLS, except to think of it as ‘20th century technology’.
+
+\subsection{OpenFlow and P4}
+
+It's not possible to write much on the topic of SDN without discussing OpenFlow, and today probably P4 needs to be added to OpenFlow as another exemplar of ‘hard SDN’ implementation strategies.
+But there is an obvious scope for terminological precision here: ‘programmable dataplane’ (or ‘programmable forwarding plane’) is a clear and precise term.
+And as soon as it is deployed there arise obvious corollaries: there are other ‘programmable dataplanes’ - in fact, every modern switch and router employs a ‘programmable dataplane’.
+Arguably the distinction is that P4 and OpenFlow are ‘\textit{open} programmable dataplanes’, alongside IETF Forces, which never made it into silicon.
+It's a useful designation, and it also highlights one of the less emphasised principles of SDN, which is disaggregation enabled by open interfaces.
+It’s useful for another reason too, which is to make nuanced distinctions between programmable networks, directly acting on ‘programmable dataplanes’, contrasted with conventional networks which have ‘programmable dataplanes’ as an underlay, but mediated through an abstraction such as local routing software, or L2 learning, or MPLS and PCEP, or other path management paradigm.
+And once this context is brought to focus, the SDN 2.0 poster child ‘intent based networking’ finds a place, which is to say as an intermediate design point between low-level ‘programmable dataplanes’ and fully abstracted protocol based local software agent controlled systems.
+The difficulty for ‘intent based networking’ is that it seems to be reliant on just one of low level ‘programmable dataplanes’, or simply an abstraction over the management plane of conventional networks based on local autonomous agents.
+So perhaps ‘intent based networking’ can be considered as a bridge between the two paradigms, or alternatively and minimalistically as merely a formalisation of an obvious abstraction principle in the design of ‘pure SDN’ networks based on low level ‘programmable dataplanes’.
+
+\subsubsection{Observations on ‘programmable dataplanes’}
+
+Practical experience has shown that the idealistic principle of disaggregation enabled by open ‘programmable dataplanes’ was hard to deliver in a fashion which was viable for production networks.
+Commercially oriented vendors tried to build ecosystems to support innovation in software defined network applications, e.g. HPE, however critical mass was never reached, and support for newer and more complete and consistent OpenFlow feature sets never arrived.
+Niche vendors such as Corsa built more scalable implementations of native OpenFlow systems, but their idiosyncratic implementations were equally restrictive of anything resembling a common implementation which would allow a user to develop vendor-agnostic applications, and enable competition between hardware forwarding plane vendors based on price and performance.
+In practice, no vendor delivered a system which had functionally equivalent alternate sources, and no mainstream vendor produced top end hardware with complete and scalable implementations of OpenFlow.
+Moreover, experience showed that even replicating standard networking behaviour over an OpenFlow infrastructure is not operationally viable.
+The known specific examples of operational OpenFlow deployments - e.g. - google and Facebook, are very specific and small parts of highly specialised network functions - arguably more akin to programmable \textit{middle-boxes} than programmable switches or routers.
+Applications for Corsa OpenFlow switches have similar characteristics.
+
+\subsubsection{Observations on P4}
+
+P4 succeeded in moving the SDN bandwagon (religion?, dream?, debate?) beyond the realm of wholesale replacement of proprietary devices in conventional networks into new and more specific fields, arguably more realistic and pragmatic - though, to be fair, the original concept for OpenFlow was very constrained and entirely pragmatic - it was only later that the idea of using OpenFlow as part of a wholesale ubiquitous replacement for existing architectures emerged.
+So P4 does not come saddled which such high expectations, and indeed, unlike OpenFlow, it is hard to understand what the ‘purpose’ of P4 really is, except that it starts by acknowledging that OpenFlow has intrinsic constraints which make it unsuited to prime-time usage: indeed, one premise of P4 is that it enables a ‘soft’ version of OpenFlow - so that users need not wait for OpenFlow implementations to catch up with later versions of protocol, or to become complete enough to be useful.
+Instead, a P4 definition of ‘OpenFlow’ could simply be downloaded into the target device, and thereafter a full and interoperable implementation of OpenFlow would become immediately available: FPGA or re-programmable microcode, rather than a bare fixed function processor!
+Oddly - no one seems to have built a ‘complete’ OpenFlow implementation over P4....
+
+But it’s not needed to dissect the successes and failures of P4 to understand that when the tide went out on OpenFlow, and the new king, P4 was introduced, at the same time the ‘hard SDN’ tribe gave up their claim to be the new end-to-end architectural paradigm - rather, P4 is a new way to build point solutions to specific network problems, for deployment in existing end-to-end networks based on conventional architectures and control and forwarding paradigms.
+So there is no need any longer to argue against SDN as the new network, as its proponents have left the field.
+SDN is dead.
+Long live P4.
+
+\section{Why SDN is broken}
+
+A network control plane carries information to either discover and report topology, or - the dual - associate ‘flows’ with ports.
+The outcome of these state exchanges in the control plane are local forwarding tables which coherently forward packets end-to-end, according to some classification.
+Full classification can either be done at edges, and packets tagged for simpler treatment at intermediate nodes, or, instead, every intermediate node must hold full classification state.
+Non-trivial networks have very large and potentially highly volatile paths, and SDN proposes more granularity and reactivity than even classical networks.
+The network must resolve topology sufficiently to ensure that in a static network valid and efficient paths emerge from the local forwarding states, and also provide mechanisms for rapid convergence on new state when topology depletion occurs, and eventually when topology augmentation occurs.
+And an SDN network which proposes resource reservation requires more complex state sharing than a classical network, to include not only current resource (port capacity), but also current load.
+The default plan, and in fact the underlying principle of SDN, is that the network ‘intelligence’, which means to say the selection of forwarding rules for each forwarding device, should be centralised.
+This requires that all state exchanges are implemented as control plane messages, both commands and reports.
+In classical networks, the converse is broadly true - fine-grained forwarding control is by local exchanges between device control software and the hardware on that device.
+The classical solution principle is that Inter-device traffic is restricted to that required to coordinate topology change discovery and communicate network ‘intent’.
+In theoretical SDN architectures this control plane is shown as an out-of-band channel, however concrete implementations cannot avoid the need for physical network to carry control plane traffic.
+Therefore, any practical SDN network must either allow that SDN control traffic must be carried inside the user channels which it also controls, or rely on a, hopefully well-designed and resilient, classical network to maintain control of the SDN elements.
+For this reason alone, a standalone SDN network is impractical unless SDN nodes have bootstrap procedures which allow them to start and reconfigure after network change or failure.
+
+The next problem for SDN is scale and responsiveness
+
+\textbf{scale}: classical networks have well-defined limits on the sizes of forwarding tables, and network designers know well what scale is needed for a given application: the break-point for e.g. L2 and L3 network segmentation is a well understood topic, and network equipment is designed carefully to ensure that typical profiles are supported by available devices at a given price point.
+\textbf{responsiveness}: classical networks have strategies for detecting link and node failures rapidly, and communicating these events to other nodes efficiently, and have routing protocols well tested to ensure that recovery is possible within the expected timescales.
+
+Local intelligence ensures that topology change notification is prompt and specific: many forms of failure can be remedied by local action without need for network wide response.
+There is never a consideration that recovery might depend on communication over a channel which has just failed.
+In contrast, SDN networks do not have consistent ways of detecting and reporting link failures, and certainly have no scope for local fault mitigation.
+
+	% {\color{red} from document file: SDN deconstruction and motivation}
+
+\subsection{Decomposing SDN}
+SDN suffers from both too broad and too narrow an implied or assumed definition, and the ambiguity about the term makes it very difficult to have useful conversations about whether something is or is not SDN, or whether something achieves a goal or claim of SDN.
+I argue that by deconstructing the term SDN into distinct smaller concepts it will be easier, or at least possible, to conduct analysis and debate and to set meaningful goals for what would have been called ‘SDN research’.
+A strong argument for making this deconstruction is that there are different strands within the accepted meanings of SDN which have no obvious linkage and which individually can be investigated and implemented and bring potential value without requiring any of the other strands, nor even in many cases does any one strand enable of lend itself to another.
+Examples of this would include:
+\begin{myitemize}
+    \item flow level forwarding behaviours
+    \item separation of control and data-planes
+    \item disaggregation of network hardware and software
+\end{myitemize}
+Now it is clearly possible to have anyone of these approaches without any of the others, though of course disaggregation enables researchers or users to more easily implement novel networking behaviour.
+
+
+A similar analysis can be applied to the potential benefits of SDN: for some, SDN is an enabler for entirely new ‘services’, or protocol implementations, though one struggles to find practical examples or even suggestions for what such new services might be! - nor is there any prior analysis identifying new services which then drives specific aspects of customisable network behaviour; for others SDN offers potential to achieve more efficiently, economically or effectively well known network goals, such as better QoS/QoE, more efficient usage of resources, or stronger levels of security; and for still others the benefit of SDN is more mundane, which is to deliver existing services more economically or reliably.
+
+Finally, there are those who claim that only SDN can enable existing networks to scale to meet imminent new demand, e.g. IoT, 5G, HDTV.
+
+It is noteworthy that the motivations most often cited by academics rarely correspond to the highest priority concerns experienced in real world contexts: few users want or need new protocols or services, nor do network operators in general believe that they have reached fundamental architectural limits of performance and capacity.
+
+And the future network vision of e.g. IoT and 5G whilst ambitious in terms of applications amount largely to ‘more of the same’ - e.g. more pervasive, reliable networks, with even lower latency and even higher capacity - and incidentally, the limitations in these cases are mostly around the access layer, e.g. wireless channels, or shared distribution media, than in core switching capacity.
+% (I would note here however that there is a case to be made that data-centre network architecture \_is\_ arguably
+
+So the main challenge for research into future network architectures I would say is:
+
+\begin{enumerate}
+	\item Improve efficiency - do more with less
+	\item Improve manageability by eliminating sources of configuration error
+	\item Improve QoE/QoS by resource allocation
+	\item Scale existing networks in line with traffic and endpoint growth
+	\item Improve network security (mostly in obvious ways - reverse path checks, firewalls, anomaly detection ).
+	      Devise better ways of mitigating DDoS.
+	\item In doing any of the above, maintain at least as good resiliency/manageability/performance as existing networks
+\end{enumerate}
+
+% \subsection{Debunking SDN pillars}
+
+% Separation of control plane and data plane
+
+\section{Future Internet}
+In this section, the objective is to position the work in this thesis within the wider context of `Future Internet' - specifically, to make the case that Future Internet studies might be better directed if deconstructed into more clearly articulated statements of:
+\begin{itemize}
+	\item problem statements
+	\item scope statements
+	\item Referenced, precise and current evaluation of existing or `in progress work', with similar goals and scope, aligned with the existing `Internet architecture' design space - in for example, IETF/IRTF initiatives
+	\item commercial reality check
+	
+\end{itemize}
+
+By reference to some well known work in the FI field, I argue that proposals for `clean slate' Internet upgrades are not only hard to motivate on the basis that there are problem or requirements for new services which existing technical architectures cannot deliver, but that without business models to accompany `clean slate' technical proposals, there can be no meaningful response or analysis of the merits of any `clean slate' proposition.
+
+\subsection{A response to SCION and RINA}
+
+SCION\cite{zhang2011} \cite{scion-book} and RINA \cite{day2008} are competing visions for a `Future Internet', both of which have achieved at least some level of recognition, and larger levels of resource expenditure.
+In 2025, their branding as `New architectures' has a curious ring to it, and by casual perusal, it seems that both SCION and RINA continue to be on the cusp of wider application, as they have both been for at least 10 years.
+RINA has an ETSI doc, SCION has implementations in P4, and it would seem that some Swiss banks are `using SCION' \footnote{https://www.swisscom.ch/en/business/enterprise/themen/connectivity/scion-next-generation.html} - though we are not told what they are using it for.  Interestingly, in the same article describing use by banks, it is also suggested that RINA `can benefit from a SCION communication structure.'
+
+As an example of the contradictions rife in the world of FI - SCION is to use the words from SCIONs IETF  contribution `SCION Data Plane - draft-dekater-scion-dataplane-04' \cite{scion-ietf}
+\begin{quote}
+	SCION is a path-aware inter-networking routing architecture as
+	described in [RFC9217].  It allows endpoints and applications to
+	select paths across the network to use for traffic, based on trusted
+	path properties.  \textbf{\textit{SCION is an inter-domain network architecture and
+			is therefore not concerned with intra-domain forwarding.}}
+\end{quote}
+From which we might think that SCION is at the least agnostic of intra-domain protocols, or, given the context of IETF, perhaps even explicitly designed to support IPv4 and IPV6?  But no, SCION packets are not even Ethernet packets.  On careful reading we discover that the expected transport mechanism for SCION packets is... UDP!. But we are also told that SCION as inter-domain, should rely on conventional protocols - OSPF, etc etc, for inter-domain reachability.  A little more reading in the same document informs us that SCION has a useful feature, which is the capability to carry IP (v4 or v6) traffic.  Although this is perhaps a little generous - it is implied that such traffic can be carried, there is no clear explanation of how the inner IP is framed within the SCION packet structure.
+
+Why this diversion into SCION specifics? - because we are told that SCION could be an infrastructure support for RINA!
+So, away to look at RINA for a moment, and ask how happy RINA will be to have SCION perform the forwarding work for it (not forgetting for that SCION is' after all, only an `intra-domain' protocol...
+But confident of course, that since SCION is only an intra-domain protocol, then surely RINA can also only be concerned about end-to-end, global connections, and has no interest in traffic passing with in a single AS.... (i.e.  applications most often provided only within an AS - mobile voice traffic, Netflix, DNS, email services, ....).
+
+Where to begin with RINA?  Surely, the ETSI document is a sensible place - if we wish to know whether RINA is an intra-AS level architecture (and whether it has any relationship with IPv4) - then where else.
+In \fullciteinfo{etsi-rina} we find the following text in the introduction:
+
+\begin{quote}
+	To illustrate the explanation of the paragraph above with an example, let us consider the Gothic architecture style. It
+	features a set of common structural elements that are common across multiple buildings with different requirements.
+	Amongst such common elements can be found:\\
+	a) grand, tall designs which swept upwards with height and grace;\\
+	b) flying buttresses;\\
+	c) pointed arches;\\
+	d) vaulted ceilings;\\
+	e) light, airy interiors; or\\
+	f) the emphasis upon the decorative style and the ornate.\\ \\
+	With these elements architects designed a myriad of buildings like cathedrals, city halls, palaces, fish markets or city
+	gates. Architects adapted the elements of the architecture to the program required by the buildings they were designing.
+\end{quote}
+
+When we arrive at Section 4.4, with the evocative title of "Goals for a generic network protocol architecture", it is clear that the question about RINA will not be so easily answered.
+By Section 5, it begins to look as if RINA has rather wider scope than just as an inter-AS tunnelling schema for otherwise unremarkable IPv4 or IPv6 client networks and hosts.
+Here, in Section 5, we see end-to-end, host PC to server, flows, that are not even obviously packet oriented, let alone IPv4 or v6, and definitely not limited to use-cases which are only inter-AS.
+How to decode this?  well, perhaps back to the SCION documentation...
+
+And at last, we understand what RINA is for - we can recurse forever, between documents, that never quite resolve to a concrete meaning, bur for ever reassure that performance, security, availability will only get better - all the while, running as an overlay, over exactly the network they claim to replace...  The problem, perhaps, is that recursion requires a terminating condition, or base case, and that is not easily to be found in either RINA or SCION.  They both claim to `interoperate' with existing networks, but quite what that means, except that perhaps when we ask the `gateway' router between IP, SCION or RINA, the router tells us that the `link is up'.  When one considers how little utility is to be had, if one connects a PC to the internet with only IPv6, how Little of the Internet, or mobile applications, are accessible, then quite how SCION or RINA
+
+A slightly more conventional, and surely equally authoritative perspective can be found in the work of Dave Clark at MIT, for example his recent book "Designing an Internet"\cite{clark2023}, following on from "Designs for an Internet" (2016), and similarly themed publications dating back to the 1980s.
+Dave Clark has some credentials: the Wikipedia page says this:
+\begin{quote}
+	From 1981 to 1989, Clark acted as chief protocol architect in the development of the Internet, and chaired the Internet Activities Board, which later became the Internet Architecture Board.
+	He has also served as chairman of the Computer Sciences and Telecommunications Board of the National Research Council.
+	In 1990 he was awarded the SIGCOMM Award in recognition of his major contributions to Internet protocol and architecture.
+	Clark received in 1998 the IEEE Richard W. Hamming Medal.
+\end{quote}
+\subsubsection{RINA: Background}
+
+RINA represents more than 15 years of activity, initiated by John Day at Boston University in 2008, in his book Patterns in Network Architecture: A return to Fundamentals \cite{rinabook}.  There is a difficulty in citing specific papers, partly because there have been so many, such that early work might seem unfair targets for critique, when so much work has been done since, perhaps rectifying or completing omissions or shortcomings in the early work\cite{day2008}; but then where can we discover what is the current and authoritative version of RINA?  There is even an ETSI document: \textit{Next Generation Protocols (NGP); An example of a non-IP network protocol architecture based on RINA design principles} \cite{etsi-rina}.
+A useful and succinct perspective n RINA can be found in the Wikipedia page\footnote{$https://en.wikipedia.org/wiki/Recursive_Internetwork_Architecture$}, of which it suffices to observe that the `Parental Warning' message at the head of the Wikipedia article: "The neutrality of this article is disputed...", placed in 20016, indicates that there is some scepticism about the significance of RINA.
+
+It might seem brave to undertake in a short review anything more than a non-judgemental survey and reflection on relevance to the present work, however, there is a sense in which either this thesis hypothesis, or the RINA proposition must be `wrong' in some fundamental sense.  Hence, some indication of why RINA should be treated as at best an informative thought experiment, rather than a credible candidate for  for investment of resource of any kind
+
+\subsubsection{RINA response}
+
+There are issues at many levels with the RINA proposition, but they fall into very broad categories which should be addressed quite differently: for example
+
+\begin{itemize}
+	\item Much of the RINA documentation is taken up with detailed analysis of shortcomings in current Internet architecture which simply do not stand up to rigorous analysis, for example it is stated that current Internet architecture suffers from an excess of different protocols, when the reverse is true - it is remarkable how little reinvention of the wheel actually takes place
+	\item On the other hand, RINA itself as described has apparent shortcomings, and details are often glossed over.
+	\item RINA makes assumptions and assertions about
+	      current network design and organisational structures, policies, motivations and objectives which are not universally or even widely valid
+	\item RINA design principles are not sufficiently explained, motivated or described.
+\end{itemize}
+
+However, there are deeper problems with RINA, which is about the needs, expectations and priorities of its users and providers are, and what compromises and priorities are required in order to come to enable widespread deployment and usage.
+In particular, the constraint that the Internet has evolved in a continuous way, and not all at the same rate or with the same priority and resources
+
+\subsubsection{Category Errors - Why study ‘the internet’?}
+
+If an academic proposed to devote significant time and energy to a numerical analytic study of either all global transport systems, or all letter and parcel delivery systems, as singular systems,
+we might reasonably
+question their motivation or even good sense.
+If it transpired that their study encompassed both ‘vehicular transport’ and ‘item delivery’ systems, and also included oil and gas and electricity distribution networks, or even merely that the ‘item delivery’ study scope extends to both takeaway food delivery, and urgent human blood and donor organ delivery, we should have little doubt that, without a very convincing explanation, the study would be too general to contribute much to either human knowledge or human well-being and prosperity.
+And simply arguing that since all of the delivery systems have in common the use of roads and wheeled vehicles would not suffice as defence (the study should make plain its limited scope....), even were it true, but in any case whilst roads are often used, delivery on foot, or by drones, is a reality.
+Yet, in the academic world of networks, such category errors are common place, and the most obvious source of these errors is studies of ‘the internet’.
+This is not to say that observational studies have no value - in fact most observational studies are careful to define the scope of their work and its applicability; the problem rather is with ‘future internet’ studies which fail to distinguish which parts of the ‘internet’ they target, how they propose to inter-work with the remaining ‘classical’ internet, and what are the business models which will enable the transformation they propose.
+These shortcomings are not peripheral or secondary - rather they are fundamental - because, budget no object, it is not at all difficult to design limited scope networks with more attractive technical characteristics than the current internet, although arguably there is little point since existing (wired) network technologies are capable of many times greater performance and capacity than most current deployments.
+
+\subsubsection{Some socio-economic and historical context}
+
+The ‘internet’ is an elusive thing to define, even just in terms of what it is today.
+See above.
+In its early days, the internet was in reality a transport mechanism for message delivery service - initially just non-interactive messaging, i.e. email.
+Interactive messaging (IM), and low bandwidth static web content followed, and as time went on higher bandwidth and more dynamic content (e.g. e-commerce) became prevalent - at each stage the network performance and QoS requirements increased, and the level of expectation and dependency users put on the applications delivered increased.
+% However,
+
+\subsubsection{The problem with explicit QoS}
+\label{sec:The problem with explicit QoS}
+The commercial challenges of QoS based services are deep-rooted: mechanisms to support QoS are as old as the Internet:
+
+\begin{itemize}
+    \item RFC 1633 - June 1994: Integrated Services in the Internet Architecture: an Overview
+    \item RFC 2205 - September 1997 - Resource ReSerVation Protocol (RSVP); RFC2474 - December 1998 - Definition of the Differentiated Services Field (DS Field) in the IPv4 and IPv6 Headers
+\end{itemize}
+And before even the arrival of widespread Internet access and service an entire network technology - ATM - was defined, providing a complete network service stack to enable end-to-end QoS in a highly flexible.
+
+\paragraph{The rise and fall of ATM technology}
+
+In the pre-internet era (1993-1998?) network providers planned and started to build national and global networks based on ATM which would have delivered services remarkably similar to those contemplated by RINA.
+Yet this effort collapsed almost overnight, to be replaced by the Internet as we now know it.
+Why?
+
+The answer is fundamentally about economics and perceived value, and to a lesser extent about a mismatch between Internet applications and the connection oriented circuit-switched principles underlying ATM.
+And the same issues which affected ATM stand to undermine RINA, moreover, RINA would have to overcome the incumbent technology by being significantly better or cheaper in order to have any realistic chance of success.
+
+% The lesson of IPv6
+
+\paragraph{Why QoS is a dead letter for future internet services}
+
+QoS support only matters when there is insufficient resource in the network, and there is a sound technical and commercial basis for prioritising some traffic flows over others.
+
+It is worth categorising different approaches to QoS.
+‘Hard’ or end-to-end QoS requires protocol support and support in user equipment or applications, as well as end-end support in the SP networks.
+Since QoS enabled infrastructure is more expensive to buy and operate, and premium price QoS enabled services difficult define and market, there is a high barrier to adoption.
+On the other hand, optimising networks to provide best possible QoE is not impossible - principally this amounts to enforcing fairness under high load conditions.
+However, fairness is a consideration largely at the access layer, and has no obvious practical implications for core transport or IDR networks.
+A related aspect of fairness is protection against simple traffic volume based DoS attacks - for which the same remedies are available as apply to general fairness enforcement.
+
+\paragraph{An analysis of Commercial viability of premium QoS Internet services}
+
+‘Hard’ or ‘soft’ QoS in the Internet (or any future Internet replacement) is commercially impractical.
+
+Hard QoS strictly allocates resources to specific user flows, typically using signalling protocols such as RSVP.
+Soft QoS separates traffic into classes and provides differentiated, enhanced, service to traffic marked as higher priority.
+Both schemes operate by de-prioritising or discarding other (legitimate) traffic.
+There are numerous reasons why these schemes are commercially unviable for almost any category of commercial service, and especially for consumer based services.
+There are several possible modes of service, and some commercial objections vary depending on which one is chosen:
+% {\color{red} this is a two-level itemised list, needs fixing}
+\begin{itemize}
+	\item Usage based charging - in this model the consumer pays a variable sum, depending on their usage of ‘QoS’ enabled services
+
+	      The problems with usage based billing are manifold:
+	      \begin{enumerate}
+		      \item No existing widely used applications or services are designed to support either QoS signalling requests, or the user dialogue which would be required to gain approval for incurring expense
+		      \item Billing systems are expensive to run, and require very detailed and reliable metering: failure to deliver QoS when it is charged for would cause huge problems, both reputational and practical
+		      \item Other than media content, there are no obvious candidates for ‘value add’ services which warrant additional charging, and media content does not require special QoS.
+	      \end{enumerate}
+	\item Fixed price bundle, metered and restricted access to ‘QoS’ enabled services
+	      This has the same shortcomings as usage based, i.e. there still has to be a billing system, and there are no obvious candidate premium ‘QoS services
+
+	\item Fixed price bundle, unlimited access to ‘QoS’ enabled services
+	      This is simpler, in that it does not require a billing system.
+	      However, if there is some ‘QoS’ sensitive application, how is it to be distinguished from ‘ordinary’ traffic - what is to stop a user marking all of their traffic as ‘high QoS’?
+
+\end{itemize}
+The first hurdle, which is probably sufficient to sink any QoS service proposition, is that existing Internet access networks are generally very good indeed, particularly in the area of ‘local’ services, such as video content, or interactive gaming.
+Furthermore, current Internet access providers are aware that users are aware of and demand reliable access to such services, even at their lower tier service levels.
+An ISP which does not reliably support such applications is unlikely to survive.
+
+Complementing ‘local’ services are ‘non local’ services - most likely services hosted in another AS network.
+Providing end-to-end QoS between even cooperating networks with direct peering is complex, and raises questions about cost and revenue sharing, albeit different depending on the chosen end user billing scheme / tariff.
+Treating for a moment just the case of directly peered QoS services, there would need to be detailed traffic planning work to engineer the correct capacity at the interconnect: but if the traffic levels are well known and carry associated revenue (or risk of penalty for failing to meet QoS SLA), then the simplest, cheapest, solution, rather than engineer explicit end-to-end QoS (which the content provider would have to support using the same signalling scheme....), would be to over-provision the interconnect by a large margin.
+
+The case of end-to-end QoS over transit networks is an extension of that for QoS over direct peering, and requires that at least three parties implement QoS support in their infrastructure.
+However, for transit ISPs there are more fundamental issues, such as how they can do capacity planning and whether they should provision more generously for interconnects which are ‘QoS enabled’, and even ‘what is the business case’ - since, without widespread transit-to-transit QoS interconnects, the service would represent a traffic black-hole (with no traffic) - an unfinished motorway bridge to nowhere.
+\paragraph{QoS and Mobile Services}
+\textit{Mobile 5G and 6G service propositions lean heavily on QoS, explicitly or implicitly, and it would seem, contradict directly the analysis here.  How can these points be reconciled?}  Simply: the services offered, or planned for offer, by mobile service providers are IP based services, but not Internet services.  And, neither are they `QoS' services in some senses, e.g. of end-to-end, per-flow based resource allocation - rather, they are best-effort transport over traffic engineered paths.   They are not Internet services, but they are IP based services.
+
+\subsubsection{QoS enabling transit networks}
+
+The business case for QoS enabled transit ISPs is hard to justify: the first question is ‘what is the business/revenue model?’.
+The principle difficulty is that the expectations of a QoS enabled interconnect are fundamentally different from generic transit, and also fundamentally different as distinguished between hard (RSVP/IntServ) and soft (DiffServ).
+
+DiffServ has the problem that it is impossible to prove that the DiffServ transit service is any better than the generic service, unless additional, very specific metrics, were defined.
+And even if the metrics could be agreed technically, the question of financial consequences of failure to meet would be challenging, and would need to be consistent with whatever contractual arrangements were in place with end users.
+So the issue becomes no longer a transit/DiffServ service definition problem but instead a set of point-to-point SLA agreements, which is completely different to IP transit, but quite possibly a service which some SPs might already offer as an alternative to IP transit.
+
+\paragraph{Hard QoS transit is equally problematic}
+, although somewhat different.
+Firstly, it represents a technical challenge: core MPLS routers are not engineered to support fine grained transient resource reservation: a solution would most likely require mapping RSVP flows to fixed MPLS tunnels, which leads back to the issue with DiffServ, which is the need to do capacity planning.
+But additionally there are revenue share considerations: either actual usage based billing is needed (!!!!?), or a charge would be needed corresponding to the capacity allocated to the MPLS tunnels.
+Which ends up very much like the problem for soft QoS transit, i.e. if you know the traffic profile in advance then it is simply a VPN, but if you don’t but you don’t want to do usage based billing for transit, then how can the service be priced, or provisioned?
+
+\paragraph{The onward connection problem}
+
+The foregoing is problematic enough, but it glosses over the reality that the capacity planning problem is much more complex, since even Tier1 transit networks do not have comprehensive interconnections, so some, possibly many, intended final destination networks would only be reachable via two or more transit networks, for which the capacity management problem becomes even more complex, and probably insoluble (think asymmetric routing!).
+Imagine the challenge in trying to determine a QoS problem over an end-to-end link through two Tier1 ISPs, without having access to support staff and information along the chain.
+And having to cope with the possibility that the BGP routing selection might change at any moment, or may have changed in the past and been the source of QoS failures?
+Only if the intended endpoints are known in advance would such a service be viable.
+
+\paragraph{The final problem}
+
+In generic IDR the endpoints have no control over the BGP route selection process.
+Unless every potential transit AS was QoS enabled, there could be no guarantee that an end-to-end QoS service path was available. And for DiffServ, there would be no way to know, while for IntServ, without control there would be no certainty for any party that payment would be made, but without usage based billing there would be no basis for allocating uncontended bandwidth across all of the potential paths.
+
+\paragraph{QoS services - Conclusion}
+
+Today's mobile and Internet services are generally more than ‘good enough’, and when they do fail to deliver it is generally as a consequence of unusual network load, or equipment failures, most often in the access network, or at times in specific service provider infrastructure.
+For neither of these service impairments does QoS provides any relief, as long as the network is already designed optimally for user fairness.
+
+\paragraph{If ‘QoS’ has no value, why do companies purchase premium network services?}
+
+Any Internet access product is fundamentally a ‘best-effort’ service, even if the access provider itself has no internal network ‘over booking’, from access line to peering interconnects, simply because there can be no assurances about the network capacity and load in peer networks, even if the traffic destination profile is entirely specified.
+Therefore Internet access service is non deterministic, and rationally any ISP will engineer their internal networks with reasonable assumptions about traffic, which nonetheless add additional ‘risk’ of network over-subscription in the face of unexpected traffic profiles.
+There are corresponding managed risks in these networks to availability, and again because there can be no certainty of network reliability beyond peering interconnects, ISPs typically implement resilience to only a sensible degree, which may not provide as high a level of resilience as could be achieved, because the cost benefit analysis does not warrant it.
+
+In contrast, end-to-end private networks offer the possibility of both more deterministic performance and higher availability, since every aspect of the network is under a single administrative domain.
+Of course, service providers may well not provision sufficient capacity for every scenario, nonetheless resource reservation and or differentiated service classes can be used to good effect in private networks; similarly, private networks may provide enhanced engineering support and guaranteed fix times, enabled by their direct control over the entire network.
+
+‘Premium’ Internet service is still a viable product, even though it can have no absolute end-to-end QoS guarantees: such services correspond to assurances of the level of over commitment and redundancy both internally and at peering points.
+‘Premium’ Internet services could be expected to have better QoS and availability than generic consumer Internet service - whether this benefit is material in all cases is uncertain.
+Most likely the strongest motivation to purchase enhanced internet is better engineering support for fault calls, rather than QoS metrics.
+
+	% {\color{red} from document file: A response to “Enabling a Permanent Revolution in Internet Architecture”}
+
+\subsection{A response to “Enabling a Permanent Revolution in Internet Architecture”}
+
+The paper\cite{mccauley2019} starts well, and continues at times to politely point out the flaws in ‘clean-slate’ projects, but in the end falls victim to almost exactly the same flaws - in fact it reads like a very subtle April Fools Day parody of other new architecture work.
+Here are a few distinct themes, which correspond to objections/flaws
+
+\begin{itemize}
+	\item what is an architecture?
+	\item what problem did it solve? what new services does it enable?
+	\item end-to-end addressing - global unique addresses are the crown jewels (think telephony, email, x.400, x.25, postcode,.... and the failed walled gardens (AOL, Blackberry, Apple messaging, Skype
+	\item end-system inertia paradigms mixed with network level
+	\item separating out the multiple levels of architecture in Internet/TCP/IP
+	\item commercial / value flow insight
+	\item dodging security, having touched on the intrinsic problem of autonomous self governed network structure of the internet
+	\item fails to show how Trotsky is anything more than an overlay (think TOR), and implicitly acknowledges that Trotsky will only ever run over Internet v1.0
+	\item throws in an optical L3.5 network, without integrating it with anything else at all
+\end{itemize}
+More detail
+
+\subsection{Architecture (what is...)}
+
+In Section 2.3 the paper says that the distinguishing feature of an Internet architecture is a design which addresses (just) global end-to-end delivery of packets.
+But, later on, Trotsky takes on end-system API details and operating principles!
+
+Then the paper says that it is need not be L3 specific.
+But the whole point about the Internet is that the global address system is exactly the L3 IP address.
+
+\subsection{what problem did it solve? what new services does it enable?}
+
+None at all are described!
+
+\subsection{naming and end-to-end addressing}
+
+If we accept that application users should be unaware of DOMAIN transitions, then a ubiquitous universal naming system is required.
+Clarity on naming and addressing semantics are essential to support reasoning about addressing schemes.
+The Internet resolves this problem by requiring globally unique addresses.
+When end-users are obstructed from access to the underlying global reachability and consistent name lookup the resulting service is no longer ‘Internet’.
+Without this assurance service providers and application developers must collaborate with individual network providers to reach end-users - which is a negation of a defining principle of the Internet.
+The paper is silent on this subject, despite offering a framework which includes end-system based network service APIs, for which semantics and scope of names and addresses are central to operation.
+
+\subsection{end-system inertia paradigms mixed with network level issues}
+
+The paper puts end system service APIs clearly in scope, and by including services such as widely disparate as dedicated point-to-point optical transport and ICN/NDN makes it very difficult to understand how the project scope can be reconciled with something described as incremental and an overlay over a conventional L3 architecture.
+
+\section{Counter proposition}
+
+\begin{myitemize}
+    \item ‘Architecture’ is a word which will destroy your mind.
+    \item Use the word design unless it is obviously wrong.
+    \item Use the word ‘Internet’ instead of ‘Internet architecture’,unless it is obviously wrong.
+    \item The current Internet is based on a number of completely separate design decisions, another Internet could be built with different decisions in one or more of these areas.
+    \item To the end user, the most fundamental bits are the ones which could be most easily invisibly changed.
+    \item Critically, some of the choices cannot be changed selectively without breaking something.
+    \item Which parts of these constitute ‘architecture’ is not easy to determine, and is almost certainly subjective.
+    \item This specific case is made even more ambiguous by the fact of change over time: if a principle that once applied does no longer does that make the principle non-architectural?
+\end{myitemize}
+
+Examples of these orthogonal design decisions are.
+
+\begin{itemize}
+	\item 32 bit globally unique end system addresses.
+	\item connectionless, immediate delivery, best-effort message service
+	\item end-address used as exclusive basis for end-to-end and hop-by-hop forwarding
+	\item DNS
+	\item SMTP
+	\item TCP and UDP
+	\item transit/AS based end-to-end network connectivity
+	\item BGP inter AS signalling
+	\item longest-match prefix based forwarding and routing protocol assumption
+	\item availability of search engines
+\end{itemize}
+We know for example that an indistinguishable internet could be built with longer than 32 bit global addresses, but that the change could not be done incrementally. \textit{Is this a different Internet architecture? Probably not}.
+
+We know that TCP could be replaced with other protocols that achieve the same result, e.g. SCTP, QUIC,....
+But in the absence of TCP a near exact equivalent would have to be built.
+No change would be needed to core routing - but plenty of edge stuff would break completely.
+The cost of fixing up a replacement and re-implementing everything that runs on top of it would be the largest software project the world has ever seen.
+Probably, planes would fall out of the sky.
+\textit{Would that be a different Internet architecture? Probably not.
+	Is it likely that an alternative would make the Internet better, or faster, or more reliable, or anything else positive? Probably not}.
+
+Similar arguments can be applied to BGP, SMTP, DNS - they could be replaced, but with something very similar, with no impact, and no sensible claim that the architecture has changed.
+
+The IP forwarding/routing design is an interesting question subject though - one could imagine a more formally layered hierarchy, using stacked routing labels, rather like the telephone numbering system - but the application of this to the current AS domain topology would be very difficult - as in, optimal routing could not work in the it does now
+The truth is that today's system in the internet is not really longest prefix matching - whilst there is some overlap, the Internet mostly works as a single level hierarchy - the benefactors of LPM are those large organisations that still have large internal publicly numbered networks.
+Changing longest prefix match for enforced uniqueness of prefixes would be a low impact change.
+Changing to a rigid hierarchy would be massively disruptive/impossible (and commercially idiotic).\textit{Would that be a different Internet architecture? Probably not}.
+
+BGP - if the multi-AS flat routing design principle is unchanged then replacing BGP with an equivalent functioning protocol would not ‘change the architecture’
+But what about source routing?
+There are as many problems with source routing as there are with Brexit - starting with, which version do you mean, and, who is going to pay for it, going on to ask how a source system can reasonably select paths in a scalable and effective way.
+The essence of the problem is that end-systems are not equipped for source routing, and the consequential change in business models would turn the Internet on its head.\textit{Would that be a different Internet architecture? YES!, surely it would}.
+A similar response would surely come to changing any of the basic packet delivery semantics: connectionless, immediate delivery, best-effort message service.
+
+Would changing the Internet end-to-end topology (AS, transit,peering) be a new architecture? Probably.
+
+What is ‘an Internet’?
+A globally connected and uniquely addressed network providing a connectionless, immediate delivery, best-effort message service, and a universally agreed set of end-system and transport application protocols.
+The Internet makes design choices which must be universally and strictly observed (mostly the IP layer), and other design choices which are essential for interoperability of end-systems, but which could have multiple different implementations (TCP, DNS,...).
+
+%%% Let's say that the ‘architecture’ is the highest level decisions of all - really about the service which is provided as much as about how it is provided
+
+%%% Intuitive approach to defining architectures
+
+%%% Appeal to other usage
+
+%%% Scope -
+
+%%% The 7 layer model, or something similar is useful to describe inter-domain ‘traffic’.
+
+\subsection{FI - A conclusion}
+
+% {\color{red} from document file: The future is here”}
+
+\begin{itemize}
+    \item The future is here
+    
+    \item Why are we still in the past?
+     
+    \item Future Internet is a licence for unbounded speculation.
+    The only constraint is that it should be different to what we have today.
+Often it seems also to require that it not be useful or wanted.
+FI research tends to lose sight of the fact that the Internet only exists because people use it for things which are \textit{not} the Internet.
+In reality, it is about facilitating human communication, and can be put alongside telephone, television, postal services and libraries.
+And cinemas, and cafes, shops and offices.
+\end{itemize}
+
+
+
+\subsection{Cloud killed the (Future) Internet}
+
+In the beginning, the internet consisted of computers connected together in a broadly symmetric relationship, and was used to exchange news, mail messages and files.
+In parallel to Internet evolution, home computers emerged - and, inevitably, the two technologies met, and the internet was transformed into an asymmetric environment consisting of consumers and providers of content and services.
+As Internet bandwidth increased, in parallel media capabilities of home computers also increased - with the result that the internet transformed from a text based world to one consisting largely of digitised media - sound and vision.
+Subsequently, the trend towards digitised content has continued, such that Internet delivery is challenging traditional broadcast technology in terms of volume of content carried. In parallel, mobile devices have proliferated, exhibiting similar profiles in terms of traffic types and volume as the wired consumer.
+Whilst the Internet as a whole is more diverse and complex than this basic picture, it is this simple model of content consumption and delivery which now dominates the evolution of the Internet architecture and infrastructure.
+A finer grained picture might add in interactive services as a distinct category (voice and video calling, IM, gaming), and acknowledge the rise of social media as an independent metaphor(?), but nonetheless technically identical in terms of content and delivery methods to traditional ‘web sites’, and a future facing perspective incorporates many more devices (‘IoT’).
+But this slightly more detailed view
+does not change the fundamentals of the provider/consumer network model.
+However, alongside this evolution of Internet usage and traffic there has been a significant change in the structure and connectivity model in the content origination side of the Internet, and it is this which leads to the conclusion that ‘Cloud killed the Internet’.
+The change is simple: in the beginning, a provider of Internet content or services had no choice but to build a physical network and computer system to deliver their traffic: and the sheer numbers of content providers meant that direct delivery of content to consumers was impossible: the solution was the classical Internet transit/peering ecosystem - and whilst early consumer ISPs initially anticipated that mass delivery of video might force an embedded content storage and service model into access network, in practice this never happened.
+However, in today's Internet, the pendulum has swung almost entirely away from transit network delivery of volume content towards something closer to that early vision of content embedded in access networks.
+The driver, as ever, in fundamentally economic, but the enabler has been the consolidation of content supply, and consolidation in two distinct, complementary, ways: firstly, consolidation of content providers - media: YouTube, Netflix, Apple, Amazon, etc - and content: Google, Facebook, Instagram, Twitter, Skype, WhatsApp., and secondly, cloud services enabling smaller content providers to virtualise their operations.
+These complementary trends together result in an ever-increasing proportion of Internet traffic being delivered from a smaller number of infrastructure based providers.
+This trend has created a virtuous circle in which the mechanism for more direct delivery to consumer ISPs has been commodified, under the banner of ‘IXPs’.
+Now that the IXP model is well established it has become trivially simple to deliver traffic directly to consumer ISPs, as soon as the cost of delivery becomes a significant factor in a business proposition.
+And, as an additional benefit, the direct connect model also offer the possibility of greater resilience due to the more distributed topology which cloud/IXP infrastructure facilitates.
+
+\subsection{Why are we still in the past?}
+
+Which leads us back to the initial question: ‘Why are we still in the past?’.
+If almost all content and service delivery is moving to cloud hosting and delivery via embedded or direct peering, why is there still so much transit traffic, and why is the Internet still so vulnerable to disruption when transit routing fails?
+Or are we living through the last gasp of a failing Internet model, which will never be fixed because ultimately no one cares enough to fix it?
+
+Another way of viewing the same data is to return to the old, low volume, text based Internet, and ask if those more diverse and distributed applications, services, and users still exist?
+Can we view today's Internet as another type of services, coexisting with the old world Internet, but not displacing it, and with its own continuing financial basis?
+Just because a new service generates 1000x the amount of traffic, it may not be 1000x as useful, or important, or profitable.
+The answer is that this old-fashioned internet does still exist, and, just like cheques and physical currency, and postal services, and real shops, it is unlikely to disappear any time soon.
+And therefore the infrastructure that supports it remains as important as ever.
+
+\subsection{Why does any of this matter?}
+
+Because in thinking about the ‘future internet’ we should be careful not to allow the high traffic / low value (in \$/bit) traffic blind us to equally important but less visible applications and users.
+The increase in total Internet traffic due to video content has been dramatic - but it should not obscure the much wider range of functions which rely on the Internet.
+What is of general interest is the change in Internet infrastructure and topology which the increase in video traffic has engendered: CDNs, IXPs, direct peering and embedded content emerged because of, or were accelerated by, demand for economic video content delivery, but they have changed the Internet architecture to the benefit of all applications.

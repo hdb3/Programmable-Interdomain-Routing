@@ -1,0 +1,511 @@
+
+\section{Evaluation: PIR / BGP Protection}
+\paragraph{Introduction}
+
+BGP protection is an application running in \hbgp as a controller embedded in a BGP AS with several ASBRs (Edge Routers).
+
+The expected behaviour is that under `normal' conditions the network behaves in the classical way - routes are evaluated based on a simple peer weighting principle, so that routes from a favoured external peer are always preferred and installed.
+
+The special case is that a route from a preferred peer is detected by the \hbgp controller to be dangerous, so that it takes special action to override the route, where it can.
+
+\subsection{Test methodology}
+
+The test strategy uses connectivity in the data-plane to prove the expected behaviour. 
+ Only the `safe' route provides a path to an endpoint used for connectivity verification.
+  The `bad' route is installed by a peer which does not host an endpoint which responds to the connectivity check - in fact, the peer announcing the bad route need not even have a functioning data-plane.
+
+Since the test is of an end-to-end multi-AS scenario, the minimal topology consists of:
+the managed AS itself, consisting of at least two `real' routers, or three for some test case variants,
+and the BGP controller, \hbgp.
+three external AS systems, which need only be single BGP routers.  The external AS systems must be capable of hosting data-plane reachable end-points located in prefixes announced by the external AS router.
+
+The diagram shows the complete `logical' topology.
+\NH{PIR diagram 1}
+
+
+The core of the test is as follows:
+
+\subsubsection{Phase One}
+\begin{itemize}
+    \item announce an initial `good' route from one external AS router
+    \item announce another valid route from the external AS router which will implement the connectivity check.
+    \item verify connectivity, e.g. `ping' between end-system hosts attached to the two external AS routers
+\end{itemize}
+
+\subsubsection{Phase Two (baseline case 1)}
+\begin{itemize}
+    \item announce any route from a third external AS router
+    \item as a baseline test, confirm that the test connectivity is lost after the bad route is announced
+    \item \begin{itemize}
+        \item inspect route tables to confirm the observation
+    \end{itemize}
+\end{itemize}
+
+
+\subsubsection{Phase Two (baseline case 2)}
+
+\begin{itemize}
+    \item start the \hbgp controller
+    \item announce a route from a third external AS router which \textit{does not} have the `evil' attribute
+    \item as a baseline test, confirm that the test connectivity is lost after the bad route is announced
+    \item \begin{itemize}
+        \item inspect route tables to confirm the observation
+    \end{itemize}
+    \item note - this test shows that the controller is selective - only if the announced route has the specific signature which marks it as bad, will the controller take over and mitigate the `attack'.
+\end{itemize}
+
+\subsubsection{Phase Two (controller cases)}
+
+\begin{itemize}
+    \item start the \hbgp controller
+    \item announce a route from a third external AS router which \textit{does} have the `evil' attribute
+    \item monitor connectivity
+    \item two possible positive outcomes may be observed:
+    either
+    \item \begin{itemize}
+        \item Connectivity is never interrupted
+    \end{itemize}
+    \item \begin{itemize}
+        \item Connectivity is briefly interrupted, but subsequently restored.  Note the duration of the interruption
+    \end{itemize}
+    \item \begin{itemize}
+        \item inspect route tables to confirm the observations
+    \end{itemize}
+    \item finally, modify the announced route from `poisoned' to `clean'
+    \item \begin{itemize}
+        \item the expected result is that the mitigation is withdrawn, and as a result the connectivity check fails.
+        In practice, if the `clean' route is actually viable, connectivity would be restored over a different path, however this test configuration doesn't have the capability to show this.  A more complex topology, in which two downstream ASs both announce the adverse route would allow the more complete experiment, which could measure not only the mitigation delay but also the restoration break in service as traffic reroutes to the preferred path when it is restored.
+
+        Nonetheless, the experiment fully validates the effectiveness of the controller in exercising selective supervision of the network.
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{controller cases}
+The most challenging corner case is one in which both external AS route sources are connected as peers to the same ASBR in the controlled AS.  This is `most interesting' because it is the case which is hardest to mitigate.
+
+The simpler case, in which each external AS route source is connected as peer to distinct ASBRs in the controlled AS, can be mitigated even in the case that the `IBGP route visibility mechanism' is simple `Best External'.
+
+This more complex case requires the deployment of both the BGP `Add Path' capability, and the redistribution of the external AS interfaces addresses in an IGP.  In the absence of these configuration elements, the mitigation cannot succeed.
+
+
+\subsection{test infrastructure and environment}
+
+A logical diagram is already provided.  The specific configuration for testing is more complex.
+\NH{another diagram required?}
+
+In these tests all data-path capable BGP routers are implemented as either Juniper or Cisco virtual routers.
+
+The virtual routers run as KVM virtual machines (VMs).
+
+More details on the infrastructure, including full explanation of the methodology for deploying and managing Juniper or Cisco virtual routers, is given in the section `kagu'
+
+The `bad' external router, and the \hbgp controller are not VMs, rather they run either as containers or directly in the Linux host context that also hosts the BGP VMs.  In practice, the `bad' VM is also an instance of \hbgp, because this allows easy manipulation of AS paths, so that the same router and configuration can be used for both baseline and actual mitigation capable tests.
+
+\subsubsection{test configuration networks}
+The KVM VMs are attached to multiple virtual bridges in order to emulate physically distinct networks.
+Although it is `valid' to attach all VM interfaces to the same virtual bridge, and rely on the separate network subnets to logically isolate the networks which are connected via the BGP ASBRs, for greater assurance that the experiment correctly implements isolation, and that the VMs are indeed in the forwarding-path for the connectivity checks, a separate virtual bridge is configured for every distinct link in the topology.
+
+The full set of isolated bridge networks is:
+\begin{itemize}
+    \item managed AS internal network (IBGP links between all managed ASBRs)
+    \item x3 EBGP links, one each per managed ASBR
+    \item x2/3 external AS router `local' network - used to host the connectivity check network endpoints
+\end{itemize}
+
+Note:
+\begin{itemize}
+    \item \hbgp controller is attached only to the internal AS network
+    \item the external AS router hosting `bad' routes is attached to the external EBGP link network of one of the manged ASBRs, either the same as the source of `good' routes, or, for the simpler case, to the otherwise unused third managed ASBR.
+\end{itemize}
+
+\paragraph{IGP in the managed AS}
+The complex mitigation case using Add Path requires that the external EBGP link addresses are reachable from all ASBRs in the managed AS.  This can be done either using an IGP (OSPF), or using static routes.  In realistic deployment static routes is not viable, however, for simplicity of configuration, the external interface addresses are configured as static routes, rather than using an IGP.  There is no impact on the validity of the experiment as a result of this simplification.
+
+\subsubsection{Configuration Overview}
+
+% Full configurations for all routers and other agents is available in the project repository.
+
+Annotated configurations for a managed ASBR in the most complex use case are shown here, for both Cisco and Juniper virtual routers:
+
+\paragraph{Junos configuration for ADDPATH}
+there is little unusual in either configuration - BGP Add Path requires a single additional line in the JUNOS configuration:
+
+\begin{verbatim}
+set protocols bgp group controller neighbor 192.168.120.99 family inet unicast add-path receive send path-count 5
+\end{verbatim}
+This configuration statement defines an internal BGP peer which is enabled for `add-path'.
+
+\paragraph{Cisco IOS configuration for ADDPATH}
+
+In the case of Cisco IOS the additional or extended three configuration lines are similar:
+\begin{verbatim}
+router bgp 65000
+ address-family ipv4
+  bgp additional-paths select all
+  neighbor 192.168.120.99 remote-as 65000
+  neighbor 192.168.120.99 advertisement-interval 0
+  neighbor 192.168.120.99 prefix-list PFX0 out
+  neighbor 192.168.120.99 additional-paths send receive
+  neighbor 192.168.120.99 advertise additional-paths all
+\end{verbatim}
+
+\subsubsection{Configuration details}
+
+
+\subsection{libvirt network environment}
+
+\paragraph{AS internal network}
+The 'core' managed AS network is configured as two libvirt network corresponding to two Linux virtual bridges.
+The internal AS network is assigned to one network/bridge, and all internal interfaces are in a single L3 network, mapped to a single L2 domain.
+
+The AS internal network is also the attachment point for the \hbgp controller.
+
+\paragraph{external links}
+Direct connections to external routers are mapped to a single second libvirt network bridge.  Because links are all defined as point-to-point /30 networks there is no 'leakage' of traffic between links, even when the traffic is routed, i.e. source and destination different to link addresses.
+
+\paragraph{external router remote networks}
+For transparency and ease of diagnosis and monitoring, the external routers are assigned local interfaces in isolated additional libvirt network bridges.  Because libvirt networks may not be moved to alternate network namespaces, the host systems used for end-to-end connectivity check are set in isolated network namespaces and use veth  pairs to make onward connection to the libvirt bridges.
+
+Traceroute and network packet capture are used to confirm that the actual packet paths are as expected, and especially that the packet path between the end hosts passes though all four virtual routers on its journey.
+
+\subsubsection{Naming and addressing}
+
+The configuration for managed VMs is:
+one interface attached to internal bridge (IBGP) - br\_internal
+one interface attached to per ASBR external local bridge - br\_external\_1/2/3
+
+The configuration for external VMs (x2) is:
+one interface attached to ASBR external local bridge - br\_external\_1/2
+one interface attached to remote internal bridge - br\_remote\_1/2
+
+other connected endpoints
+end-system connectivity check (x2) attached to remote internal bridge - br\_remote\_1/2
+\hbgp controller - attached to internal bridge (IBGP) - br\_internal
+
+
+\subsubsection{addressing}
+
+\subsubsection{AS internal network}
+bridge: br\_internal
+subnet: 192.168.120.0/24
+controller is at 192.168.120.99
+ASBRs are at 192.168.120.2,3,4
+
+\paragraph{managed AS connected external links}
+
+links to external peers are all in /30
+network addresses are 172.19.X.Y/30
+where the X $\in$ \{0,1,2\} denotes which ASBR hosts the link, and Y increments for every connected link
+E.g. ASBR1 has a link 7.0.0.1/30 to the first external peer on 7.0.0.2
+
+\paragraph{remote external networks}
+The inter-connected used to test connectivity over the managed AS are hosted by peers external1 and external2,
+
+the connected networks are
+external1 : 172.19.0.0/24
+external2 : 172.19.1.0/24
+
+the router interfaces, and thus default g/w in these nets are at 172.19.N.1
+the host system addresses used for connectivity verification are 172.19.N.3
+
+\paragraph{AS numbers}
+The managed AS is AS65000
+The external ASs are AS65001 and AS65002
+
+\subsubsection{Router Specific configuration}
+
+The juniper/junos configuration of ASBR1 is given here almost completely.
+The only excised configuration statements are those related to login credentials etc.
+
+Annotations explain the significance of particular configuration items.
+\begin{lstlisting}[title=Physical Interfaces and global settings]
+nic@jbr3a# show | display set
+set version 18.2R1.9
+set system login user nic uid 2000
+set system login user nic class super-user
+set system host-name jbr3a
+.....
+set interfaces vtnet0 unit 0 family inet address 192.168.120.2/24
+set interfaces vtnet1 unit 0 family inet address 7.0.0.1/30
+set interfaces vtnet2 unit 0 family inet address 7.0.0.5/30
+
+set routing-options autonomous-system 65000
+set protocols bgp accept-remote-nexthop
+set protocols bgp hold-time 0
+\end{lstlisting}
+
+\begin{lstlisting}[title=IBGP peers - import and export policy are open\, so all known routes are announced]
+set protocols bgp group internal-peers type internal
+set protocols bgp group internal-peers import open
+set protocols bgp group internal-peers export open
+set protocols bgp group internal-peers neighbor 192.168.120.3
+set protocols bgp group internal-peers neighbor 192.168.120.4
+\end{lstlisting}
+
+
+\begin{lstlisting}[title=default class for external peers]
+set protocols bgp group external-peers type external
+set protocols bgp group external-peers import open
+set protocols bgp group external-peers export open
+set protocols bgp group external-peers neighbor 7.0.0.2 peer-as 65001
+\end{lstlisting}
+
+
+\begin{lstlisting}[title=special group for the controller - note the add-path statements]
+set protocols bgp group controller type internal
+set protocols bgp group controller import open
+set protocols bgp group controller export open
+set protocols bgp group controller neighbor 192.168.120.99 family inet unicast add-path receive
+set protocols bgp group controller neighbor 192.168.120.99 family inet unicast add-path send path-count 5
+\end{lstlisting}
+
+
+\begin{lstlisting}[title=special case external peers\, will get higher local pref and thus may disrupt connectivity]
+set protocols bgp group external-pref-peers type external
+set protocols bgp group external-pref-peers import p1
+set protocols bgp group external-pref-peers neighbor 7.0.0.6 peer-as 65001
+\end{lstlisting}
+
+
+\begin{lstlisting}[title=policy definitions used in earlier clauses.]
+set policy-options policy-statement open term 1 then accept
+set policy-options policy-statement p1 term t1 then local-preference 200
+\end{lstlisting}
+
+
+\subsection{Evaluation}
+
+The evaluation of the experiment is rather simple: the observations consist of, for baseline cases, observing that when BGP Protection is not deployed, or when the announced adverse route is not `poisoned', then the service interruption on announcing an adverse route is persistent.  To illustrate the outcomes, sample console reports of the router routing state are shown, and for the successful mitigation, the time-to-restore-service is measured and reported.
+
+\paragraph{base-case - mitigation required}
+
+Note that both `good' and `bad' routes are present in the respective receiving ASBRs, and also that the selected route shown in the connectivity check ASBR is the adverse route.
+
+The routing table in the exit ASBR is shown here, note the adverse route is selected, although both announced routes are show, even though both routes are announced by the same peer ASBR.  This is only possible when ADDPATH is configured.
+
+This table is for the case in which the poisoned route is announced, but \hbgp is not running as a controller.
+
+This example shows the Juniper JUNOS case.
+
+A similar routing table is seen for the other base case in which the \hbgp controller is active but the announced route is not poisoned by reason of a specific AS number in the AS-PATH attribute.
+
+\paragraph{AddPath, adverse and replacement route advertised at the same ASBR - mitigation successful.}
+
+Here we show two route routing state reports.  For variety, this example is from the Cisco case.
+
+Note that there are now three competing routes announced in the mesh, one of which is a restated version of the original viable route which was replaced by a `poisoned' route.  Because the restated route has the highest Local Preference it is accepted and installed in all ASBRs.
+
+Note also that the restated route is only seen at the locus of control, being the ASBR which received the poisoned route.  Because the other routers would anyway forward via this ASBR for this route, they do not need to receive the override route from the controller.
+
+The time to mitigate was measured over 10 runs each for the same topology using both Cisco IOS and Juniper VMX as ASBRs.  The table shows the statistical analysis for these observations.
+
+Note that the service interruption is measured using the Connection Interruption Monitor tool developed for this purpose, which allows simple and accurate measurement of interruption and reliable recording of the duration for later analysis.
+
+
+% % \section{PIR test implementation guide}
+
+% \NH{\rule{14cm}{0.4pt}}
+
+% \NH{this text is to be relocated in the kagu section}
+
+
+% \subsection{functional components of PIR test environment}
+
+% \subsubsection{server, OS, virtualisation host}
+
+% The current server and OS are Ubuntu Linux 22.04 (laptop) and Ubuntu Linux 20.04 (rack mount server).
+% Laptop has 32 GB RAM and 14 CPU cores (Intel i7-1280P), server 128GB RAM, 20 CPU cores (Intel Xeon D-1747NTE).
+
+% Virtualisation support is standard Linux KVM/qemu managed with libvirt.
+% Container technology is standard Docker.
+
+% \subsection{virtual routers, software routers}
+% \subsubsection{versions}
+
+% \begin{enumerate}
+% \item Cisco virtual router: IOSv - VIOS-ADVENTERPRISEK9-M - Version 15.7(3)M3
+% \item Juniper virtual router: Junos VMX - JUNOS 18.2R1.9
+% \item Bird.cz - BIRD2 - version 2.15.1
+% \item frr - version 8.4.4 (installed via package manager in ubuntu24.04)
+% \item OpenBGPD - version 8.6
+% \item gobgp - version 3.35.0
+% \end{enumerate}
+
+% \subsubsection{build procedures - Docker images}
+
+% \begin{enumerate}
+% \item Bird2 and OpenBGPD are built from source
+% \item frr is installed as an ubuntu package
+% \item gobgp is installed as a binary from OSRGs github repository.
+% \end{enumerate}
+
+% \subsubsection{build procedures - virtual router images}
+
+% \begin{enumerate}
+% \item <reference source file directory>
+% \end{enumerate}
+
+% A custom configuration tool was developed for both Cisco and Juniper as an 'expect' script which drivers a clean router instance by invoking command line scripts which copy in the configuration files based on the router role requested.  The configuration files consist of 'standard' IOS and Junos configuration CLI commands.
+% The scripts allow many full router configurations to be maintained and updated and used on demand to (re-)create the desired set of routers for an experiment.
+
+% A virtual router is built from a suitable 'qcow2' image using the 'virt-install' tool and nominating the OS variant as freebsd12.0'.
+
+% Junos images are assigned 4Gb RAM and use 'virtio' network drivers.
+
+% Cisco images are assigned 2Gb RAM and use 'e1000' network drivers.
+
+% The virtual image builder is developed under the project heading 'kagu'.
+
+
+% \NH{\rule{14cm}{0.4pt}}
+
+
+
+\subsection{Full Test Report}
+
+Showing the various observations and actions used during the 3 BR ADDPATH Test Case (Adverse Route on Same Router)
+
+Three types of observation are cited:
+\begin{itemize}
+    \item the route tables and changes to route table entries, as seen on the target routers, as the experiment proceeds (`before', `during' and `after')
+    \item traceroute for the user-plane path that is used to `prove' that the attack is effective, and the mitigation successful
+    \item use plane continuity log, using fping, measures the latency of the mitigation process
+\end{itemize}
+
+In combination, these logs show that the process is operating as described.  In particular, that the user plane traffic is following the intended paths, and that the target routers do indeed undergo the routing state changes predicted by the theory.
+
+
+\subsubsection{Route Table Display}
+
+% nh: the repeated \paragraph{} lines 'work' - without repeat, the text in the title is not rendered....
+% nh: why why why???
+\paragraph{Initial State}
+\paragraph{Initial State}
+
+
+\begin{lstlisting}[title=As seen at ASBR1]
+172.19.0.0/24      *[BGP/170] 00:09:45, localpref 100
+                      AS path: 65001 I, validation-state: unverified
+                    > to 7.0.0.2 via vtnet1.0
+\end{lstlisting}
+
+\begin{lstlisting}[title=As seen at ASBR2]
+172.19.0.0/24      *[BGP/170] 00:01:43, localpref 100
+                      AS path: 65001 I, validation-state: unverified
+                    > to 192.168.120.2 via vtnet0.0
+\end{lstlisting}
+
+\paragraph{Disrupted State}
+\paragraph{Disrupted State}
+
+
+\begin{lstlisting}[title=As seen at ASBR1]
+172.19.0.0/24      *[BGP/170] 00:00:12, localpref 200
+                      AS path: 65001 666 I, validation-state: unverified
+                    > to 7.0.0.6 via vtnet2.0
+                    [BGP/170] 00:14:00, localpref 100
+                      AS path: 65001 I, validation-state: unverified
+                    > to 7.0.0.2 via vtnet1.0
+\end{lstlisting}
+
+\begin{lstlisting}[title=As seen at ASBR2]
+172.19.0.0/24      *[BGP/170] 00:03:00, localpref 200
+                      AS path: 65001 666 I, validation-state: unverified
+                    > to 192.168.120.2 via vtnet0.0
+\end{lstlisting}
+
+\paragraph{After Remediation}
+\paragraph{After Remediation}
+
+\begin{lstlisting}[title=As seen at ASBR1]
+172.19.0.0/24      *[BGP/170] 00:00:31, localpref 1000000, from 192.168.120.99
+                      AS path: 65001 I, validation-state: unverified
+                    > to 7.0.0.2 via vtnet1.0
+                    [BGP/170] 00:00:31, localpref 200
+                      AS path: 65001 666 I, validation-state: unverified
+                    > to 7.0.0.6 via vtnet2.0
+                    [BGP/170] 00:08:11, localpref 100
+                      AS path: 65001 I, validation-state: unverified
+                    > to 7.0.0.2 via vtnet1.0
+\end{lstlisting}
+
+\begin{lstlisting}[title=As seen at ASBR2]
+172.19.0.0/24      *[BGP/170] 00:00:48, localpref 1000000, from 192.168.120.99
+                      AS path: 65001 I, validation-state: unverified
+                    > to 192.168.120.2 via vtnet0.0
+\end{lstlisting}
+
+\subsubsection{traceroute}
+\begin{lstlisting}[title=traceroute for normal state\, showing dataplane transit through four virtual routers]
+nic@xps9320:~/src/kakapo$ ip netns exec default4  traceroute 172.19.0.3
+traceroute to 172.19.0.3 (172.19.0.3), 30 hops max, 60 byte packets
+ 1  172.19.1.1 (172.19.1.1)  0.490 ms  0.432 ms  0.416 ms
+ 2  7.0.1.1 (7.0.1.1)  1.448 ms  1.434 ms  1.418 ms
+ 3  192.168.120.2 (192.168.120.2)  1.972 ms  1.955 ms  1.941 ms
+ 4  7.0.0.2 (7.0.0.2)  2.385 ms  2.368 ms  2.354 ms
+ 5  172.19.0.3 (172.19.0.3)  2.707 ms  2.693 ms  2.676 ms
+nic@xps9320:~/src/kakapo$ ip netns exec default4  traceroute 172.19.0.3
+\end{lstlisting}
+
+\begin{lstlisting}[title=traceroute report when the adverse route is not mitigated]
+traceroute to 172.19.0.3 (172.19.0.3), 30 hops max, 60 byte packets
+ 1  172.19.1.1 (172.19.1.1)  0.400 ms  0.368 ms  0.351 ms
+ 2  7.0.1.1 (7.0.1.1)  0.998 ms  0.983 ms  0.968 ms
+ 3  192.168.120.2 (192.168.120.2)  1.570 ms  1.555 ms  1.540 ms
+ 4  172.19.1.2 (172.19.1.2)  1.362 ms  1.347 ms  1.331 ms
+ 5  172.19.1.2 (172.19.1.2)  1.314 ms  1.300 ms  1.284 ms
+\end{lstlisting}
+
+\begin{lstlisting}
+nic@xps9320:~/src/kakapo$ ip netns exec default4  fping 172.19.0.3
+ICMP Port Unreachable from 172.19.1.2 for ICMP Echo sent to 172.19.0.3
+ICMP Port Unreachable from 172.19.1.2 for ICMP Echo sent to 172.19.0.3
+ICMP Port Unreachable from 172.19.1.2 for ICMP Echo sent to 172.19.0.3
+ICMP Port Unreachable from 172.19.1.2 for ICMP Echo sent to 172.19.0.3
+\end{lstlisting}
+
+
+\subsubsection{outage measurements}
+
+\begin{lstlisting}[title=fping reported outages at 5 second intervals]
+nic@xps9320:~/src/kakapo$ ip netns exec default3  fping -Q 5 -l -o -p 10 172.19.1.1
+172.19.1.1 : xmt/rcv/%loss = 491/491/0%, outage(ms) = 0, min/avg/max = 0.989/2.83/4.17
+172.19.1.1 : xmt/rcv/%loss = 486/466/4%, outage(ms) = 200, min/avg/max = 0.857/2.85/4.65
+172.19.1.1 : xmt/rcv/%loss = 490/490/0%, outage(ms) = 0, min/avg/max = 0.950/2.99/4.69
+172.19.1.1 : xmt/rcv/%loss = 491/491/0%, outage(ms) = 0, min/avg/max = 1.15/2.99/4.83
+172.19.1.1 : xmt/rcv/%loss = 492/492/0%, outage(ms) = 0, min/avg/max = 0.402/2.33/4.27
+172.19.1.1 : xmt/rcv/%loss = 491/491/0%, outage(ms) = 0, min/avg/max = 0.443/2.47/4.04
+172.19.1.1 : xmt/rcv/%loss = 491/491/0%, outage(ms) = 0, min/avg/max = 0.617/2.67/4.53
+172.19.1.1 : xmt/rcv/%loss = 492/492/0%, outage(ms) = 0, min/avg/max = 0.373/2.16/8.40
+172.19.1.1 : xmt/rcv/%loss = 490/490/0%, outage(ms) = 0, min/avg/max = 0.696/2.90/4.40
+172.19.1.1 : xmt/rcv/%loss = 492/492/0%, outage(ms) = 0, min/avg/max = 0.489/2.27/4.55
+172.19.1.1 : xmt/rcv/%loss = 491/491/0%, outage(ms) = 0, min/avg/max = 0.679/2.90/4.38
+172.19.1.1 : xmt/rcv/%loss = 490/450/8%, outage(ms) = 400, min/avg/max = 0.784/2.93/4.38
+172.19.1.1 : xmt/rcv/%loss = 492/490/0%, outage(ms) = 20, min/avg/max = 0.478/2.82/6.09
+172.19.1.1 : xmt/rcv/%loss = 492/492/0%, outage(ms) = 0, min/avg/max = 0.536/2.23/4.12
+172.19.1.1 : xmt/rcv/%loss = 491/491/0%, outage(ms) = 0, min/avg/max = 0.713/2.83/4.31
+\end{lstlisting}
+
+Two samples show transient disruption of the dataplane
+
+in line 3, 200 mS, this is the event during which adverse route is received, initially accepted by the receiving ASBR, but subsequently mitigated under instruction of the controller.
+
+In line 13 the trigger for interruption is the withdrawal of the adverse route.
+
+Notice that the time to remediate is 200mS, but when the adverse route is withdrawn the outage is 400ms.
+
+It seems counter-intuitive that restoration should be disruptive - the explanation is that the original route is no longer announced in IBGP, and cannot be until the override is withdrawn.
+The delay consists of 200mS at the route announcing ASBR and 200mS more at the other dataplane active ASBR.
+The interruption could be mitigated, possibly to zero, by staggering the withdrawal messages from the controller.
+
+
+\subsubsection{BGP Packet Capture Analysis}
+\NH{not sure if packet capture needed, must investigate.....}
+
+\section{BGP Protection - Summary and Conclusions}
+
+The BGP Protection scheme has been shown to be effective and reliable as a mechanism, although for practical implementation would need to be integrated with one of the many proposed tools for detecting routing attacks or failures, and enabled to support the lambda BGP style of asynchronous call back. \footnote{asynchronous call back control is needed when the BGP controller does not itself make the rejection decision.  In this experiment, the \hbgp controller has hardwired local configuration to start the rejection process whenever routes with the suspicious AS path number are seen.  The point of \textit{this} experiment is to validate the mitigation strategy.  Previous published work exhibits the externalised control method, using e.g. REST or gRPC.} (In the lambda BGP paper\cite{lambdabgp} we showed a more complete instance of a BGP controller based on \hbgp, enabling an externally connected system to process, analyse and selectively respond to mitigate routing threats.)
+
+The main purpose of this implementation, PIR,  and its evaluation, is to demonstrate that a programmable solution can be implemented within existing core BGP networks, and not only in clean-slate networks, in which all routers should run \hbgp or some other new routing system.
+
+It supports the argument that Programmability can be brought to existing networks in a simple, reliable and non-disruptive way.

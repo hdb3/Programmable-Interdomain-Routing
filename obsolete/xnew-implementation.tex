@@ -1,0 +1,125 @@
+
+\chapter{Implementations}
+
+\section{Structure of the software - Major components}
+
+There are three main contributions which are more or less stand alone:
+\begin{itemize}
+    \item \textbf{The Haskell BGP implementation - \hbgp}, and derived utilities for offline MRT data analysis and the like.  This is called variously hbgp and \hbgp.  This also includes the specialisations of hbgp for PIR.
+    \item \textbf{BGP performance tools - kakapo }.  This also includes a minimal BGP relay which can be used to benchmark kakapo and act as a baseline for comparing other BGP speaker performance.  The main kakapo utility is ‘kakapo core’ \- the benchmark relay is called ‘kakapo-relay’.  Also included in this group are a set of analysis tools for kakapo output data, including data reduction and graph plotting support.
+    \item \textbf{Test frameworks \- kagu}  \- kagu supports server based test orchestration and is rather closely linked to the kakapo tool (you can use kakapo without kagu very easily, but kagu is quite tailored to running kakapo in batch mode with variations in execution parameters). `
+    % The second is an interactive test framework, which is simply called ‘testscripts’. `
+    % The core of this system is a multi-window tmux environment, and it packages all the well known open source BGP speakers for ease of deployment with various types of functional and performance tests.
+    Support is also included for building, configuring, and running Juniper and Cisco virtual routers.
+\end{itemize}
+
+\subsection{\hbgp}
+
+\subsubsection*{The \hbgp core router}
+
+The most likely application for \hbgp is as a starting point for further work rather than as a BGP speaker in its own right, since in its basic distribution form \hbgp provides no substantial  material advantages over existing open source routers such as bird or frr, whilst the other routers have many features and attributes which \hbgp lacks, such as support for other routing protocols, and operational support capabilities such as traditional static route policy configuration language, dynamic configuration, and a complete comprehensive logging and console interface.
+However, \hbgp is a viable alternative for applications which otherwise might be addressed using exaBGP, but require higher levels of performance or routing and protocol integrity.
+In common with exaBGP, such use-cases require some software development capabilities on the part of the user.
+\hbgp has further  advantages over exaBGP than just performance and integrity \- it provides a ready-made routeing engine which allows a wide range of applications to be built with very little additional code, and critically \hbgp implements a fully functional RIB.
+Work which is intended to evaluate extensions to BGP protocol or functionality in the context of a functional router is likely to be far simpler using \hbgp than other open source approaches.
+Since the implementation of \hbgp, gobgp has become a significant presence in the BGP ecosystem - whether gobgp enables the same ready extension to novel applications is a more difficult question to answer.
+
+\subsubsection*{\hbgp libraries and utilities}
+
+The \hbgp project contributes a number of libraries and utilities which may have independent application outside the core router itself.  The first of these are the protocol parser / deparser libraries for BGP, BMP and MRT.  These are complete implementations which allow easy manipulation, generation and decoding of binary formats.  Sample useful applications are also provided, such as MRT archive transformation to binary streams,  MRT archive analysis to report on many statistical properties of current global internet routing tables, and an implementation of a BMP collector, which can generate online ad hoc route table reports or write MRT format archives, using data retrieved from an operational router.  `
+In addition to the application specific contribution, these libraries also provide useful and complete reference implementations of current best practice approaches to network protocol programming in Haskell, e.g. using ‘attoparsec’ decoders and ‘bytestring-builders’ for decoding and encoding respectively.
+
+\subsubsection*{ Building \hbgp }
+
+\hbgp uses standard Haskell build tools, i.e. stack or cabal.  All \hbgp components build with current and recent ghc compilers (8.10, 9.6, 9.8 series) and depend only on the curated core packages available in the Stackage repository.
+
+Building \hbgp is a simple  4-step process:
+\begin{enumerate}
+    \item install Haskell package dependencies\footnote{The following packages are required for Ubuntu 24.04:\\ git pkg-config curl ca-certificates build-essential libgmp-dev libffi-dev libncurses-dev zlib1g-dev libffi8 libtinfo6}
+    \item install the Haskell toolchain, using \textbf{ghcup} \footnote{\url{https://www.haskell.org/ghcup/}}
+    \item clone the \hbgp repo from github (\url{ https://github.com/hdb3/hBGP.git})
+    \item build and install using stack - \verb|stack install|
+\end{enumerate}
+
+\hbgp is tested on Linux, however the build system supports macOS and MS Windows as Tier 1 targets and \hbgp  should also run on those systems without modification.
+
+ `
+\subsection{kakapo}
+
+kakapo is a set of Linux command line programs which enable functional and performance testing of BGP systems.  kakapo has no dependency on \hbgp codebase nor any specific functional alignment with \hbgp router. `
+
+\subsubsection*{  kakapo core test agent}
+
+kakapo-core is a standalone ‘C’ language network application.  Whilst it implements a BGP speaker it is very specifically designed as a test tool and has rather limited capabilities in the area of BGP message payload handling, and its support for peer session establishment is equally restricted.  It would not be a good candidate basis for a more generic or complete BGP speaker.  However, it is well suited to the specific purpose of generating large volumes of BGP Update messages and monitoring the resulting Update output stream from the target, with low latency, high precision and consistent reproducibility.  `
+In operation kakapo acts as two or more independent BGP speakers, one of which acts as a sink for BGP Updates and the others as sources of Updates.  Kakapo can either synthesise Updates itself or replay a predefined stream of updates, typically derived from a pre-processed MRT archive. (This is the single area of overlap between kakapo and \hbgp \- \hbgp can be used to extract or build BGP Update streams from MRT archives into data files containing complete raw BGP protocol messages.  These files can then be used by kakapo as the basis for burst tests.  However, the file format is not in any way proprietary and could as easily be created by a simple packet capture utility.)  `
+This is not a complete description of the test capabilities of kakapo, neglecting for example the capability to test with concurrent parallel update streams, and the continuous rate test mode,  and the ‘canary’ test validation strategy.  These topics are addressed in more detail in the main thesis.
+
+\paragraph{ building kakapo core}
+
+kakapo core is a simple standalone ‘C’ program with no dependencies beyond the minimal Linux glibc library with pthreads.  The included build script simply invokes gcc and should be compatible with any Linux platform.
+
+\paragraph{building other kakapo components}
+
+kakapo has two other main components \- the firsts is kakapo-relay, another command line network application, and the second \- named in a utility library named ‘reports’ \-  is a set of python based utilities which post-process raw kakapo result data to produce tabular graph data and graphical visualisations of the data.  This enables the output data from many invocations of kakapo for different targets or with different traffic profiles to be readily compared.  `
+
+kakapo-relay is built like kakapo-core, using gcc, and has the same dependencies.
+
+\subsubsection*{ kakapo deployment and uses cases}
+
+kakapo core does not require the supplementary components kakapo-relay or reports.  kakapo-relay is useful principally as a baseline benchmark, to validate that observed performance characteristics of other BGP speakers are representative of the target system constraints rather than limitations in the performance of the test tool, kakapo-core.  This is particularly valuable when implementing new or virtualised test environments to provide a sanity check that the virtualised system is not a source of performance limitations.  `
+The ‘reports’ data reduction tool is valuable for investigating details of performance variation and reproducibility when executing large numbers of kakapo tests.  `
+Whilst kakapo-core could potentially  be extended further to cover other aspects of BGP performance it already fulfils the primary purpose for which it was designed, and I don’t envisage a significant extension of its features would be justified.  Probably the most fruitful area for work would be to make test scenarios even more configurable without having to recompile source code, however this is relatively trivial to accomplish in the existing system.
+
+% \section{The Kakapo Test Framework: Architecture and Methodology}
+
+% Original heading: \subsection{Kakapo - An Application for BGP performance characterisation}
+% \subsection{System Architecture and Core Implementation}
+Kakapo is a high-precision BGP traffic generation and monitoring application.
+It is designed to measure the performance of a BGP speaker for varying load conditions by measuring the time to process a number of BGP messages.
+Kakapo uses a black-box testing approaches and relies solely on BGP message times to understand the impact of the protocol load on the speaker performance.
+In order to perform the measurement, kakapo establishes multiple parallel BGP sessions with a speaker and emulates the behaviour of multiple BGP speakers.
+Kakapo BGP sessions are RFC-compliant, relying on a minimal complete BGP Finite State Machine, thus allowing the test system to measure the performance of any software and hardware router.
+
+The architecture of kakapo is depicted in Figure~\ref{fig:arch}.
+For each experiment kakapo establishes a single passive sink (monitor \& measurement) session towards the speaker, and one or more source (traffic generation) sessions, with each session configurable in terms of BGPID, AS number and Optional Capabilities.
+Each experiment commences by initialising the BGP speaker under test (BSUT) with an empty RIB and configured to ensure that routes received from the emulated source test peers will be imported into the RIB and re-exported towards the destination sink test peer.
+Typically, the BSUT and sink peers are configured in the same AS (IBGP sessions) whilst the sink peer is in a different AS, (EBGP session).
+If the BSUT has a configurable MRAI (Minimum Readvertisement Interval) timer, this must be disabled to ensure that route updates are always promptly re-announced.
+As a result, every route advertisement or withdrawal from a source session causes the speaker to immediately transmit a corresponding route update to the sink session, once the route has been processed.
+By orchestrating both the sinks and the source stream from a single application, the system can precisely measure timestamps and thus RTTs for each update.
+
+\paragraph{kakapo internal structure}
+
+\begin{myitemize}
+    \item kakapo is a Linux command line application,  written in C, that uses conventional Linux network APIs to implement a BGP endpoint that is capable of interacting with a wide range of common BGP implementations.
+    \item kakapo is entirely  self-contained - importing only from pure glibc, it has no dependence on 3rd party libraries.
+    \item kakapo (kakapo core) itself consists of around 3,300 lines of C code.
+\end{myitemize}
+
+kakapo implements basic BGP message parsers and decoders, sufficient for a complete BGP state machine.
+It implements concurrent BGP endpoints, using Linux TCP network sockets per connected peer, multithreaded for management of state machines and BGP route sink.
+In kakapo the BGP message receiving functions are multithreaded, while the core BGP load generator is single threaded,  but it uses asynchronous (non-blocking) IO to distribute load over multiple peers.
+BGP Update messages are synthesised `on-the-fly' using large buffers to build large numbers of Update messages.
+Since a full route table is only around 10-20 M bytes, even it can easily be sent in a single socket write call, while the fastest client, bird, is only capable of \textasciitilde150k messages second, so in burst mode kakapo transmit thread is not highly stressed - it typically runs at less than 5\% load even when its peer is running 100\% busy.
+The continuous mode is rather more CPU heavy, but only because it is forced to work at much finer granularity in order to keep the transmit pipeline full.
+In continuous mode, kakapo receive side might receive just a small handful of updates in a socket read, and respond with a correspondingly small number of fresh routes.
+Thus, continuous mode kakapo paired with a high performance peer also typically runs very busy, often over 50\% sustained CPU use.
+
+\paragraph{\textbf{kakapo relay}}
+In order to evaluate the base performance of our measurement platform, the kakapo codebase contains the kakapo-relay application, a reference BGP speaker supporting the minimal functionality required to peer with the kakapo system.
+The purpose of kakapo-relay is to provide a benchmark measure of the performance capability of the test harness and characterise any measurement artefact incurred by the platform.
+Kakapo-relay is written in C and uses iovec and epoll to achieve low latency and line rate network throughput in realistic BGP test scenarios.
+Both kakapo and kakapo-relay optimise network performance by working with very large buffers and executing read and write operations which typically address very large numbers of BGP messages in a single system call.
+The continuous rate measurement design is especially sensitive to efficiency issues: if kakapo transmits updates too quickly, it forces much smaller messages at network Layers 2 and 3, which pushes up the CPU demand for the target systems and results in much lower performance than would be the case if Updates are transmitted in slightly larger blocks.
+Since our objective is to establish how fast the BSUT can perform under optimal conditions, we adjust the transmit block size parameter to ensure that TCP and Ethernet transfers are large enough to avoid this effect (but still much smaller than the `in-flight window').
+However, it should not be ignored that in many real world scenarios routing traffic packet scheduling may not be so optimal, and thus these BGP speakers may perform even less well than our measurements show.
+
+\subsection{kagu}
+
+ ‘kagu’ is an orchestration wrapper for tests based on the kakapo performance test suite, and it is sufficiently complex and useful to merit separate documentation.  Without the support of kagu the experimental work and results presented in the main thesis would have been very time-consuming and likely would have severely limited the scope and confidence levels of the results presented.  `
+ % There is a loose coupling between these test frameworks and the tests which they orchestrate, and in fact for the work in this thesis the interactive test system is used with two distinct test agents \- kakapo, and a modified version of \hbgp, τbgp (test-hbgp).
+
+
+kagu is the name for the collection of programs which initialise, configure, instantiate, monitor and report on the bulk execution.  During the development of the bulk test framework the kagu design evolved significantly, and some components still included in the source bundle were replaced and deprecated as better approaches were found.  There were two main drivers for this evolution, both of them arising from the requirement to recover from exceptions and failures in individual test execution cycles, and to record context data from these exceptions for subsequent analysis and diagnosis.  The necessity for this arises from the long-running nature of the tests, which are intended to collect large numbers (100s-1000s) of data points for tests, each of which may run in some cases for  minutes or even hours, and for which the failure modes were neither consistent nor easily detected.  Matters are complicated further by the fact that the execution environments for tests are multiple virtual machines and/or containers, whose internal state, including dump files, log files and console exception reports, is ephemeral and even inaccessible in some failure scenarios.  The eventual test environment architecture is described here.
+
+

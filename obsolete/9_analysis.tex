@@ -1,0 +1,74 @@
+\chapter{Analysis}
+\section{Notes}
+\subsection{FRR}
+
+FRR is harder to work with than the other BGPs (openBGP, bird, gobgpd).
+\begin{itemize}
+	\item FRR is a cluster of daemons rather than a single binary.
+	\item FRR requires multiple configuration files, which makes it inconsistent with every other BGP, and hard to automate or containerise (since the work here was completed, FRR adopted a single configuration file paradigm.  But it still doesn't help in this case, due to problems and inconsistencies between (now) current, and older versions of FRR.)
+	\item Even the FRR bgp daemon, `bgpd', is not a self-contained binary - it relies on several shared libraries (.so files).  (Shared with other FRR daemons....)
+\end{itemize}
+FRR embeds paths to system directories for various purposes:
+\begin{itemize}
+	\item logging
+	\item control socket
+	\item `PID' file location
+\end{itemize}
+FRR bgpd is intolerant of a missing forwarding plane control channel -
+although it defines `no FIB' and `no zebra' command parameters, it effectively ignores them.
+Perhaps some of the other FRR routing protocol daemons correctly observe these parameters?
+FRR bgpd attempts to validate some aspects of routes before it will propagate them, e.g. by checking validity of (BGP route attribute) nexthops - and, when unsuccessful, logs floods of error reports.
+
+Later versions of FRR (post-8.1) are even more intolerant of such forwarding-plane related issues.
+A severe problem that arises as a result, is that even when FRR behaves functionally as expected,
+in respect of BGP route propagation, it sometimes does so with very low performance,
+presumably because of the CPU load arising from the flood of log messages it produces,
+which also makes any kind of monitoring or troubleshooting very difficult.
+
+A partial solution to this problem in FRR is to implement `BGP views' in the configuration - views are a kind of virtual routing domain.
+FRR views allow a BGP instance under test to be effectively isolated from the `default network',
+and thereby suppresses almost all attempts to correlate any BGP protocol originated network addresses with the underlying platform network context.
+
+FRR is also a difficult system to install,
+especially if the desired FRR version is not aligned with the default FRR version in the test environment distro.
+
+After a lot of different attempted solutions to version installation challenges
+- e.g., build from source; use docker images of older distro versions,
+for their matched FRR versions; the approach which has finally proved reliable is to use pre-built
+FRR packages (.deb's), from FRR's own image repository.
+
+Many images for ubuntu 22.04 and 24.04 are available, going back to versions 6 and 7.
+
+In contrast, building from source is especially fraught - it requires installation of obsolete versions of gcc; the location and installation of matching developer source versions of dependencies, e.g. zlib,libyang, and others.
+Then, even when built successfully, the resulting binaries may exhibit strange behaviour, inconsistent with the equivalent available bundled in the FRR project curated .deb's.
+
+In conclusion: were it not for the FRR project's curated old release packages, it would have been infeasible to obtain meaningful performance or functional test results for FRR when running tests on current distributions, without at least completely reworking the test run-time orchestration system, and perhaps instead simply installing FRR as a package, allowing FRR to manage its own execution context, e.g. via systemd.
+But this itself is problematic, since the test environment is required to start and run multiple instances of other, none-FRR BGP speakers, on carefully curated distinct network endpoints or network name spaces, or even run more than one instance of FRR.
+
+Even the FRR DEB resource cannot solve one issue, which is how to access a rather significant version of FRR - version 8.1 - that being the latest version which does not exhibit the severe floods of error logs when run standalone.
+This particularly affects Ubuntu 24.04 rather than 22.04, because Ubuntu 22.04 still provides FRR 8.1 as an available package, but that FRR version is no longer available for Ubuntu 24.04.
+
+The issue is that FRR DEBs are only provided for the last minor version in each of the releases 6,7,8,9,10, so only FRR 8.5.6 can be found here, not FRR 8.1.
+
+Note - it might seem that circumventing packages in order to install software which could also be managed through packages is perverse and risky.
+The difficulty is that package-managers typically only allow one `router' to be installed on a system - so the fact that bird, openBGP, frr and GoBGP are all now in Ubuntu packages, doesn't mean that one can install and test with them concurrently.
+In particular, our test system uses bird widely as a reference BGP speaker, for diagnostic and unit test purposes, so for example to `smoketest' FRR with bird requires that at least one be NOT installed as a package.
+
+Now, it is possible to `force' breakage of package-manager constraints.
+But, since in some cases we required to be testing with much later versions of BGPs than packages could provide, it was decided not to pursue package based solutions, except for the special case of FRR.
+Fortunately, there is only once case like FRR.....
+
+\textbf{Does Docker help solve these problems?}
+
+Yes, but only partially.
+Since the objective is to do testing in a consistent way over all test targets, even just running one in Docker, with the others running directly in the host, is open to question in terms of experimental practice.
+But, because of the issues relating to FRR documented here, the choice was made to use Docker universally for all platforms.
+Although this does add some initial overhead to building the test system, in the long term the impact of using Docker throughout is considered positive.
+
+\subsection {Procedure for Using FRR as a BGP test target}
+
+\begin{enumerate}
+	\item download and install the FRR package at the desired version level.  Use the standard package manager.  Instructions and images are at https://deb.frrouting.org/
+	\item Locate the installed main binary, e.g. \$ which bgpd
+	\item Either use this system path directly in scripts, or symlink out to this path from the test system binary library
+\end{enumerate}

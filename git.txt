@@ -1,0 +1,4 @@
+eea8bf2c97ae8ac6fc477214ef05fe18e08c70d2 before merge new material
+9d1011f1d87a5a9c9a4da955f3903d61732e4b24 first compiling verision after merge (18jun25)
+934dd1f31dcad467c2bac8d7a79cd26a0d61d74d this is a close to ready-to-submit version (29 june 2025)
+e2185c55a48c8d13fdfdd11c3c0a21678e296385 post merge of some nested files (29 june 2025)
